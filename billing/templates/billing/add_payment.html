@@ -1,0 +1,845 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Add Payment{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:payment_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Payments
+</a>
+{% endblock %}  
+
+{% block billing_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card form-card">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-cash-coin"></i> Record Payment
+                </h3>
+                <p class="form-subtitle">Add a new payment received from party</p>
+            </div>
+
+            <form method="post" class="needs-validation" novalidate id="payment-form">
+                {% csrf_token %}
+                
+                <!-- Payment Details Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-info-circle"></i> Payment Information
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <!-- Party Selection or Manual Entry -->
+                        <div class="col-md-12">
+                            <label class="form-label">
+                                Party <span class="text-danger">*</span>
+                            </label>
+                            <div class="party-toggle-container">
+                                <div class="btn-group w-100 mb-2" role="group">
+                                    <input type="radio" class="btn-check" name="party_entry_mode" id="party_mode_select" value="select" checked>
+                                    <label class="btn btn-outline-success" for="party_mode_select">
+                                        <i class="bi bi-list-ul"></i> Select Existing
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="party_entry_mode" id="party_mode_manual" value="manual">
+                                    <label class="btn btn-outline-success" for="party_mode_manual">
+                                        <i class="bi bi-pencil-square"></i> Enter Manually
+                                    </label>
+                                </div>
+                                
+                                <!-- Existing Party Selection -->
+                                <div id="party-select-container">
+                                    {{ form.party }}
+                                    {% if form.party.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.party.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Manual Party Entry -->
+                                <div id="party-manual-container" style="display: none;">
+                                    {{ form.new_party_name }}
+                                    {% if form.new_party_name.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.new_party_name.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        <i class="bi bi-info-circle"></i> Enter party name - will be created if doesn't exist
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.invoice.id_for_label }}" class="form-label">
+                                Invoice (Optional)
+                            </label>
+                            {{ form.invoice }}
+                            {% if form.invoice.errors %}
+                                <div class="invalid-feedback d-block">{{ form.invoice.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Invoice Amount Information (Hidden by default) -->
+                        <div class="col-md-12" id="invoice-info-section" style="display: none;">
+                            <div class="invoice-info-card">
+                                <div class="invoice-header">
+                                    <h6>
+                                        <i class="bi bi-file-earmark-text"></i> Invoice: <span id="invoice-number">-</span>
+                                    </h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="bi bi-receipt"></i> Invoice Total
+                                        </label>
+                                        <div class="info-display">
+                                            <span class="currency-symbol">₹</span>
+                                            <span id="invoice-total">0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="bi bi-check-circle"></i> Already Paid
+                                        </label>
+                                        <div class="info-display paid">
+                                            <span class="currency-symbol">₹</span>
+                                            <span id="paid-amount">0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="bi bi-clock-history"></i> Pending Amount
+                                        </label>
+                                        <div class="info-display pending">
+                                            <span class="currency-symbol">₹</span>
+                                            <span id="pending-amount">0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">
+                                Payment Date <span class="text-danger">*</span>
+                            </label>
+                            {{ form.date }}
+                            {% if form.date.errors %}
+                                <div class="invalid-feedback d-block">{{ form.date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.amount.id_for_label }}" class="form-label">
+                                Amount (₹) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                {{ form.amount }}
+                            </div>
+                            <div class="invalid-feedback" id="amount-error"></div>
+                            {% if form.amount.errors %}
+                                <div class="invalid-feedback d-block">{{ form.amount.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.mode.id_for_label }}" class="form-label">
+                                Payment Mode <span class="text-danger">*</span>
+                            </label>
+                            {{ form.mode }}
+                            {% if form.mode.errors %}
+                                <div class="invalid-feedback d-block">{{ form.mode.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                Notes
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Receipt Options -->
+                        <div class="col-md-12">
+                            <div class="receipt-options-card">
+                                <h6 class="options-title">
+                                    <i class="bi bi-gear"></i> Receipt Options
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            {{ form.send_receipt }}
+                                            <label class="form-check-label" for="{{ form.send_receipt.id_for_label }}">
+                                                <i class="bi bi-whatsapp text-success"></i> Send WhatsApp Receipt
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            {{ form.download_receipt }}
+                                            <label class="form-check-label" for="{{ form.download_receipt.id_for_label }}">
+                                                <i class="bi bi-download text-info"></i> Download PDF Receipt
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg" id="submit-btn">
+                        <i class="bi bi-check-circle"></i> Record Payment
+                    </button>
+                    <a href="{% url 'billing:payment_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background-color: #0f1115 !important;
+    color: #e0e0e0;
+}
+
+.form-card {
+    background: rgba(18, 18, 18, 0.92);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+    margin-bottom: 60px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.form-header {
+    background: linear-gradient(135deg, rgba(30, 100, 40, 0.4), rgba(0, 60, 20, 0.2));
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-title {
+    color: #34d058;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle {
+    color: #a0a0a0;
+    margin: 8px 0 0 0;
+    font-size: 0.95rem;
+}
+
+.form-section {
+    padding: 30px;
+    background: rgba(12, 12, 12, 0.85);
+}
+
+.section-title {
+    color: #34d058;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-label {
+    color: #d5d5d5;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+/* Party Toggle Styling */
+.party-toggle-container {
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.btn-check:checked + .btn-outline-success {
+    background: linear-gradient(135deg, #28a745, #34d058);
+    border-color: #34d058;
+    color: #fff;
+}
+
+.btn-outline-success {
+    border-color: rgba(52, 208, 88, 0.3);
+    color: #34d058;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-success:hover {
+    background: rgba(52, 208, 88, 0.1);
+    border-color: #34d058;
+    color: #34d058;
+}
+
+/* Invoice Info Card Styling */
+.invoice-info-card {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.12), rgba(52, 208, 88, 0.08));
+    border: 1px solid rgba(52, 208, 88, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 10px 0;
+    animation: slideDown 0.4s ease-out;
+}
+
+.invoice-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(52, 208, 88, 0.2);
+}
+
+.invoice-header h6 {
+    color: #34d058;
+    font-weight: 600;
+    margin: 0;
+}
+
+.info-display {
+    background: rgba(20, 20, 20, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px 20px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #34d058;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.info-display.pending {
+    color: #ffc107;
+    border-color: rgba(255, 193, 7, 0.3);
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.info-display.paid {
+    color: #17a2b8;
+    border-color: rgba(23, 162, 184, 0.3);
+    background: rgba(23, 162, 184, 0.1);
+}
+
+.info-display .currency-symbol {
+    font-size: 1.1rem;
+    opacity: 0.8;
+    margin-right: 5px;
+}
+
+.info-display.updated {
+    background: rgba(40, 167, 69, 0.2);
+    transform: scale(1.02);
+}
+
+/* Receipt Options Card */
+.receipt-options-card {
+    background: rgba(25, 25, 25, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.options-title {
+    color: #34d058;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Warning state for exceeding pending */
+.amount-warning {
+    border-color: #dc3545 !important;
+    background: rgba(220, 53, 69, 0.1) !important;
+}
+
+.amount-warning:focus {
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Dark input fields with maximum visibility */
+.form-control, 
+.form-select, 
+textarea.form-control {
+    background-color: #000000 !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+/* Enhanced dropdown visibility */
+.form-select {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    cursor: pointer;
+}
+
+.form-select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    padding: 10px !important;
+}
+
+.form-select option:hover,
+.form-select option:focus,
+.form-select option:checked,
+.form-select option:active {
+    background-color: #1a1a1a !important;
+    color: #34d058 !important;
+}
+
+/* Override any conflicting styles */
+select.form-control,
+select.form-select {
+    background-color: #000000 !important;
+}
+
+select.form-control option,
+select.form-select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+/* Focus and interaction */
+.form-control:focus, 
+.form-select:focus, 
+textarea.form-control:focus {
+    background-color: rgba(40, 167, 69, 0.15) !important;
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25) !important;
+    color: #fff !important;
+}
+
+.input-group-text {
+    background: rgba(40, 167, 69, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #28a745;
+    font-weight: 600;
+    border-radius: 10px 0 0 10px;
+}
+
+.form-check-input {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.form-check-label {
+    color: #d5d5d5;
+    cursor: pointer;
+}
+
+.form-actions {
+    padding: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    background: rgba(15, 15, 15, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745, #34d058);
+    border: none;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
+    transition: all 0.3s ease;
+    padding: 12px 30px;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #34d058, #28a745);
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(52, 208, 88, 0.6);
+}
+
+.btn-success:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-outline-secondary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #a0a0a0;
+    padding: 12px 30px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.text-danger {
+    color: #ff6b6b !important;
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 5px;
+    display: block;
+}
+
+.form-text.text-muted {
+    color: #a0a0a0 !important;
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0; 
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0);
+        max-height: 500px;
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.shake {
+    animation: shake 0.5s;
+}
+
+@media (max-width: 768px) {
+    .form-header { padding: 20px; }
+    .form-section { padding: 20px; }
+    .form-title { font-size: 1.4rem; }
+    .info-display { font-size: 1.2rem; }
+    .form-actions { 
+        flex-direction: column; 
+    }
+    .btn-lg {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form elements
+    const form = document.getElementById('payment-form');
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
+    const invoiceSelect = document.getElementById('{{ form.invoice.id_for_label }}');
+    const partySelect = document.getElementById('{{ form.party.id_for_label }}');
+    const manualPartyInput = document.getElementById('{{ form.new_party_name.id_for_label }}');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // Display elements
+    const invoiceInfoSection = document.getElementById('invoice-info-section');
+    const totalDisplay = document.getElementById('invoice-total');
+    const paidDisplay = document.getElementById('paid-amount');
+    const pendingDisplay = document.getElementById('pending-amount');
+    const invoiceNumberDisplay = document.getElementById('invoice-number');
+    const amountError = document.getElementById('amount-error');
+    
+    // Party mode containers
+    const partySelectContainer = document.getElementById('party-select-container');
+    const partyManualContainer = document.getElementById('party-manual-container');
+    const partyModeSelect = document.getElementById('party_mode_select');
+    const partyModeManual = document.getElementById('party_mode_manual');
+    
+    // Store pending amount globally
+    let currentPendingAmount = 0;
+    let hasInvoiceSelected = false;
+
+    // Set default date to today
+    if (!dateInput.value) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${day}`;
+    }
+
+    // ============================================
+    // PARTY ENTRY MODE TOGGLE
+    // ============================================
+    function togglePartyMode() {
+        if (partyModeManual.checked) {
+            // Manual entry mode
+            partySelectContainer.style.display = 'none';
+            partyManualContainer.style.display = 'block';
+            partySelect.value = '';
+            partySelect.disabled = true;
+            manualPartyInput.disabled = false;
+            manualPartyInput.focus();
+        } else {
+            // Select mode
+            partySelectContainer.style.display = 'block';
+            partyManualContainer.style.display = 'none';
+            manualPartyInput.value = '';
+            manualPartyInput.disabled = true;
+            partySelect.disabled = false;
+        }
+    }
+    
+    partyModeSelect.addEventListener('change', togglePartyMode);
+    partyModeManual.addEventListener('change', togglePartyMode);
+
+    // ============================================
+    // FETCH AND DISPLAY INVOICE AMOUNTS
+    // ============================================
+    function fetchInvoiceAmounts(invoiceId) {
+        if (!invoiceId) {
+            invoiceInfoSection.style.display = 'none';
+            currentPendingAmount = 0;
+            hasInvoiceSelected = false;
+            amountInput.removeAttribute('data-pending');
+            validateAmount();
+            return;
+        }
+
+        hasInvoiceSelected = true;
+
+        // Fetch invoice amounts via AJAX
+        fetch(`/billing/invoice-amounts/${invoiceId}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Invoice not found');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    invoiceInfoSection.style.display = 'none';
+                    hasInvoiceSelected = false;
+                } else {
+                    // Store pending amount
+                    currentPendingAmount = parseFloat(data.pending);
+                    
+                    // Show and update the invoice info section
+                    invoiceInfoSection.style.display = 'block';
+                    
+                    // Update invoice number
+                    invoiceNumberDisplay.textContent = data.invoice_number || '-';
+                    
+                    // Update values with animation
+                    totalDisplay.parentElement.classList.add('updated');
+                    paidDisplay.parentElement.classList.add('updated');
+                    pendingDisplay.parentElement.classList.add('updated');
+                    
+                    totalDisplay.textContent = data.total.toFixed(2);
+                    paidDisplay.textContent = (data.total - data.pending).toFixed(2);
+                    pendingDisplay.textContent = data.pending.toFixed(2);
+                    
+                    // Set pending amount as default payment amount if empty
+                    if (data.pending > 0 && !amountInput.value) {
+                        amountInput.value = data.pending.toFixed(2);
+                    }
+                    
+                    // Store pending in data attribute
+                    amountInput.setAttribute('data-pending', data.pending);
+                    
+                    // Remove animation class after animation completes
+                    setTimeout(() => {
+                        totalDisplay.parentElement.classList.remove('updated');
+                        paidDisplay.parentElement.classList.remove('updated');
+                        pendingDisplay.parentElement.classList.remove('updated');
+                    }, 300);
+                    
+                    // Validate current amount
+                    validateAmount();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching invoice data:', error);
+                invoiceInfoSection.style.display = 'none';
+                hasInvoiceSelected = false;
+            });
+    }
+
+    // ============================================
+    // VALIDATE PAYMENT AMOUNT
+    // ============================================
+    function validateAmount() {
+        const amount = parseFloat(amountInput.value);
+        
+        // Clear previous errors
+        amountInput.classList.remove('is-invalid', 'amount-warning');
+        amountError.textContent = '';
+        amountError.style.display = 'none';
+        submitBtn.disabled = false;
+        
+        // Basic validation: amount must be greater than zero
+        if (isNaN(amount) || amount <= 0) {
+            amountInput.classList.add('is-invalid');
+            amountError.textContent = 'Amount must be greater than zero';
+            amountError.style.display = 'block';
+            submitBtn.disabled = true;
+            return false;
+        }
+        
+        // If invoice is selected, check against pending amount
+        if (hasInvoiceSelected && currentPendingAmount > 0) {
+            if (amount > currentPendingAmount) {
+                amountInput.classList.add('amount-warning');
+                amountError.textContent = `⚠️ Amount exceeds pending balance of ₹${currentPendingAmount.toFixed(2)}`;
+                amountError.style.display = 'block';
+                amountError.style.color = '#ffc107';
+                submitBtn.disabled = true;
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    
+    // Invoice selection change
+    invoiceSelect.addEventListener('change', function() {
+        fetchInvoiceAmounts(this.value);
+    });
+    
+    // Amount input validation (real-time)
+    amountInput.addEventListener('input', function() {
+        validateAmount();
+    });
+    
+    // Amount blur - format to 2 decimals
+    amountInput.addEventListener('blur', function() {
+        if (this.value) {
+            const amount = parseFloat(this.value);
+            if (!isNaN(amount) && amount > 0) {
+                this.value = amount.toFixed(2);
+            }
+        }
+        validateAmount();
+    });
+    
+    // ============================================
+    // FORM SUBMISSION VALIDATION
+    // ============================================
+    form.addEventListener('submit', function(e) {
+        const amount = parseFloat(amountInput.value);
+        
+        // Validate party selection
+        if (partyModeSelect.checked && !partySelect.value) {
+            e.preventDefault();
+            alert('⚠️ Please select a party from the dropdown.');
+            partySelect.focus();
+            return false;
+        }
+        
+        if (partyModeManual.checked && !manualPartyInput.value.trim()) {
+            e.preventDefault();
+            alert('⚠️ Please enter a party name.');
+            manualPartyInput.focus();
+            return false;
+        }
+        
+        // Basic validation
+        if (!validateAmount()) {
+            e.preventDefault();
+            amountInput.classList.add('shake');
+            setTimeout(() => {
+                amountInput.classList.remove('shake');
+            }, 500);
+            return false;
+        }
+        
+        // If invoice is selected, perform additional checks
+        if (hasInvoiceSelected && currentPendingAmount > 0) {
+            const pending = currentPendingAmount;
+            
+            // Prevent submission if amount exceeds pending
+            if (amount > pending) {
+                e.preventDefault();
+                
+                amountInput.classList.add('shake');
+                amountInput.focus();
+                
+                alert(`❌ Payment Cannot Exceed Pending Amount!\n\n` +
+                      `Payment Amount: ₹${amount.toFixed(2)}\n` +
+                      `Pending Amount: ₹${pending.toFixed(2)}\n\n` +
+                      `Please enter a maximum of ₹${pending.toFixed(2)}`);
+                
+                setTimeout(() => {
+                    amountInput.classList.remove('shake');
+                }, 500);
+                
+                return false;
+            }
+            
+            // Confirm if amount is less than pending (partial payment)
+            if (amount < pending) {
+                const remaining = pending - amount;
+                const confirmed = confirm(
+                    `⚠️ Partial Payment Confirmation\n\n` +
+                    `Payment Amount: ₹${amount.toFixed(2)}\n` +
+                    `Total Pending: ₹${pending.toFixed(2)}\n` +
+                    `Remaining Balance: ₹${remaining.toFixed(2)}\n\n` +
+                    `Do you want to continue with partial payment?`
+                );
+                
+                if (!confirmed) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    });
+
+    // ============================================
+    // INITIALIZE IF INVOICE PRE-SELECTED
+    // ============================================
+    if (invoiceSelect.value) {
+        fetchInvoiceAmounts(invoiceSelect.value);
+    }
+});
+</script>
+{% endblock %}

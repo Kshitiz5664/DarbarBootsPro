@@ -1,0 +1,596 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Challan Details - {{ challan.challan_number }}{% endblock %}
+
+{% block action_button %}
+<div class="d-flex gap-2">
+    <a href="{% url 'billing:challan_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
+    <a href="{% url 'billing:challan_update' challan.id %}" class="btn btn-outline-warning">
+        <i class="bi bi-pencil"></i> Edit
+    </a>
+    <button onclick="window.print()" class="btn btn-outline-info">
+        <i class="bi bi-printer"></i> Print
+    </button>
+</div>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card detail-card">
+            <!-- Header Section -->
+            <div class="detail-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="detail-title">
+                            <i class="bi bi-truck"></i> Delivery Challan
+                        </h2>
+                        <p class="challan-number">{{ challan.challan_number }}</p>
+                    </div>
+                    <div class="status-badge">
+                        <i class="bi bi-check-circle-fill"></i> Active
+                    </div>
+                </div>
+            </div>
+
+            <!-- Challan Information -->
+            <div class="detail-section">
+                <h5 class="section-title">
+                    <i class="bi bi-info-circle"></i> Challan Information
+                </h5>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="info-group">
+                            <label class="info-label">Challan Number</label>
+                            <div class="info-value">{{ challan.challan_number }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="info-group">
+                            <label class="info-label">Date</label>
+                            <div class="info-value">{{ challan.date|date:"d M, Y" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="info-group">
+                            <label class="info-label">Party Name</label>
+                            <div class="info-value">
+                                <i class="bi bi-building"></i> {{ challan.party.name }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="info-group">
+                            <label class="info-label">Related Invoice</label>
+                            <div class="info-value">
+                                {% if challan.invoice %}
+                                    <a href="{% url 'billing:invoice_detail' challan.invoice.id %}" class="invoice-link">
+                                        <i class="bi bi-receipt"></i> {{ challan.invoice.invoice_number }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">No invoice linked</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if challan.transport_details %}
+                    <div class="col-md-12">
+                        <div class="info-group">
+                            <label class="info-label">Transport Details</label>
+                            <div class="info-value transport-details">
+                                {{ challan.transport_details|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Items Section -->
+            <div class="detail-section">
+                <h5 class="section-title">
+                    <i class="bi bi-box-seam"></i> Items to Deliver
+                </h5>
+                
+                <div class="table-responsive">
+                    <table class="table items-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 60%;">Item Name</th>
+                                <th style="width: 20%;">HSN Code</th>
+                                <th style="width: 15%;" class="text-end">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <div class="item-name">{{ item.item.name }}</div>
+                                    {% if item.item.description %}
+                                        <small class="text-muted">{{ item.item.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.item.hsn_code %}
+                                        <span class="hsn-badge">{{ item.item.hsn_code }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <span class="quantity-badge">{{ item.quantity }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mb-0 mt-2">No items found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="total-items">
+                    <strong>Total Items:</strong> {{ items.count }}
+                </div>
+            </div>
+
+            <!-- Metadata Section -->
+            <div class="detail-section metadata-section">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="metadata-item">
+                            <i class="bi bi-person-plus"></i>
+                            <div>
+                                <small class="text-muted d-block">Created By</small>
+                                <span>{{ challan.created_by.get_full_name|default:challan.created_by.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="metadata-item">
+                            <i class="bi bi-clock"></i>
+                            <div>
+                                <small class="text-muted d-block">Created On</small>
+                                <span>{{ challan.created_at|date:"d M, Y h:i A" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if challan.updated_by %}
+                    <div class="col-md-6">
+                        <div class="metadata-item">
+                            <i class="bi bi-person-check"></i>
+                            <div>
+                                <small class="text-muted d-block">Last Updated By</small>
+                                <span>{{ challan.updated_by.get_full_name|default:challan.updated_by.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="metadata-item">
+                            <i class="bi bi-clock-history"></i>
+                            <div>
+                                <small class="text-muted d-block">Last Updated</small>
+                                <span>{{ challan.updated_at|date:"d M, Y h:i A" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="detail-actions">
+                <a href="{% url 'billing:challan_update' challan.id %}" class="btn btn-warning">
+                    <i class="bi bi-pencil-square"></i> Edit Challan
+                </a>
+                <button onclick="window.print()" class="btn btn-info">
+                    <i class="bi bi-printer-fill"></i> Print Challan
+                </button>
+                <a href="{% url 'billing:challan_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-list-ul"></i> View All Challans
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("download") === "1") {
+        const pdfUrl = "{% url 'billing:challan_pdf' challan.id %}";
+        window.open(pdfUrl, "_blank");
+
+        // Remove ?download=1 from URL after opening the PDF
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+});
+</script>
+
+
+<style>
+body {
+    background: linear-gradient(160deg, #0a0a0a, #111, #050505);
+    color: #e0e0e0;
+    padding-bottom: 80px;
+}
+
+/* --- Card Styling --- */
+.detail-card {
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(18px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* --- Header Section --- */
+.detail-header {
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.25), rgba(100, 0, 0, 0.2));
+    padding: 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-title {
+    color: #e63946;
+    font-size: 1.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 8px 0;
+}
+
+.challan-number {
+    color: #b5b5b5;
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+.status-badge {
+    background: rgba(40, 167, 69, 0.2);
+    border: 1px solid rgba(40, 167, 69, 0.4);
+    color: #28a745;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* --- Section Styling --- */
+.detail-section {
+    padding: 30px 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-section:last-of-type {
+    border-bottom: none;
+}
+
+.section-title {
+    color: #e63946;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* --- Info Groups --- */
+.info-group {
+    background: rgba(20, 20, 20, 0.6);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+}
+
+.info-group:hover {
+    background: rgba(30, 30, 30, 0.8);
+    border-color: rgba(230, 57, 70, 0.3);
+}
+
+.info-label {
+    color: #888;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.info-value {
+    color: #f0f0f0;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.transport-details {
+    background: rgba(15, 15, 15, 0.8);
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid #e63946;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.invoice-link {
+    color: #17a2b8;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.invoice-link:hover {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(23, 162, 184, 0.8);
+}
+
+/* --- Table Styling --- */
+.items-table {
+    background: rgba(15, 15, 15, 0.8);
+    margin-bottom: 0;
+}
+
+.items-table thead {
+    background: rgba(230, 57, 70, 0.2);
+}
+
+.items-table th {
+    color: #e63946;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(230, 57, 70, 0.4);
+    padding: 16px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.items-table td {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #d0d0d0;
+}
+
+.items-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.items-table tbody tr:hover {
+    background: rgba(230, 57, 70, 0.08);
+}
+
+.item-name {
+    font-weight: 600;
+    color: #f0f0f0;
+    margin-bottom: 4px;
+}
+
+.hsn-badge {
+    background: rgba(23, 162, 184, 0.2);
+    color: #17a2b8;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.quantity-badge {
+    background: rgba(230, 57, 70, 0.2);
+    color: #e63946;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    display: inline-block;
+}
+
+.total-items {
+    background: rgba(230, 57, 70, 0.15);
+    padding: 16px 20px;
+    margin-top: 20px;
+    border-radius: 12px;
+    color: #e63946;
+    font-size: 1.1rem;
+    border: 1px solid rgba(230, 57, 70, 0.3);
+}
+
+/* --- Metadata Section --- */
+.metadata-section {
+    background: rgba(15, 15, 15, 0.6);
+}
+
+.metadata-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #b0b0b0;
+}
+
+.metadata-item i {
+    font-size: 1.5rem;
+    color: #e63946;
+}
+
+.metadata-item small {
+    font-size: 0.8rem;
+}
+
+/* --- Action Buttons --- */
+.detail-actions {
+    padding: 30px 40px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: rgba(15, 15, 15, 0.85);
+}
+
+.btn {
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+    border: none;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #ff9800, #ffc107);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(255, 193, 7, 0.4);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border: none;
+    color: #fff;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #138496, #17a2b8);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(23, 162, 184, 0.4);
+}
+
+.btn-outline-secondary {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #bbb;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #fff;
+    color: #fff;
+}
+
+.btn-outline-warning {
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+    background: rgba(255, 193, 7, 0.2);
+    border-color: #ffc107;
+    color: #ffc107;
+}
+
+.btn-outline-info {
+    border: 1px solid rgba(23, 162, 184, 0.5);
+    color: #17a2b8;
+}
+
+.btn-outline-info:hover {
+    background: rgba(23, 162, 184, 0.2);
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+/* --- Animation --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Print Styles --- */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    
+    .detail-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .btn, .detail-actions, #action_button {
+        display: none !important;
+    }
+    
+    .detail-header {
+        background: white;
+        color: black;
+    }
+    
+    .detail-title, .section-title {
+        color: #000;
+    }
+    
+    .info-group {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+    }
+    
+    .items-table {
+        background: white;
+    }
+    
+    .items-table thead {
+        background: #f8f9fa;
+    }
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .detail-header {
+        padding: 24px;
+    }
+    
+    .detail-section {
+        padding: 20px;
+    }
+    
+    .detail-title {
+        font-size: 1.4rem;
+    }
+    
+    .detail-actions {
+        padding: 20px;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 10px 16px;
+    }
+}
+</style>
+{% endblock %}

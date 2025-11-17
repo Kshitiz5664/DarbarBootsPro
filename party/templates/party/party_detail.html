@@ -1,0 +1,135 @@
+{% extends 'wholesale/base.html' %}
+{% load static %}
+{% block content %}
+
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold text-primary">{{ party.name }}</h3>
+    <div>
+      <a href="{% url 'party:party_edit' party.id %}" class="btn btn-outline-primary me-2">
+        <i class="bi bi-pencil-square"></i> Edit
+      </a>
+      <a href="{% url 'party:send_reminder' party.id %}" class="btn btn-success">
+        <i class="bi bi-whatsapp"></i> Send Reminder
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-1">Total Invoiced</h6>
+          <h4 class="fw-bold">₹{{ kpi.total_invoiced|floatformat:2 }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-1">Total Paid</h6>
+          <h4 class="fw-bold text-success">₹{{ kpi.total_paid|floatformat:2 }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-1">Pending</h6>
+          <h4 class="fw-bold text-danger">₹{{ kpi.pending|floatformat:2 }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-1">Invoices</h6>
+          <h4 class="fw-bold">{{ kpi.open_invoices }} Open / {{ kpi.closed_invoices }} Closed</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Table -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-light fw-semibold">
+      <i class="bi bi-receipt"></i> Invoice Details
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Paid</th>
+              <th>Balance</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in invoice_details %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ entry.invoice.date|date:"d M Y" }}</td>
+              <td>₹{{ entry.invoice.total_amount|floatformat:2 }}</td>
+              <td class="text-success">₹{{ entry.total_paid|floatformat:2 }}</td>
+              <td class="text-danger">₹{{ entry.balance|floatformat:2 }}</td>
+              <td>
+                <span class="badge {% if entry.status == 'Closed' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                  {{ entry.status }}
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-3">No invoices available.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-light fw-semibold">
+      <i class="bi bi-cash-coin"></i> Payment History
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Invoice</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in payments %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ payment.date|date:"d M Y" }}</td>
+              <td>{{ payment.invoice.invoice_number }}</td>
+              <td class="text-success">₹{{ payment.amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-3">No payments found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

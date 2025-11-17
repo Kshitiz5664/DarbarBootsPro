@@ -1,0 +1,140 @@
+{% extends 'wholesale/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+  /* Circular Action Buttons - Same Style as Invoice Page */
+  .action-btn {
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      font-size: 1rem;
+  }
+
+  /* View */
+  .view-btn {
+      border: 2px solid #0dcaf0;
+      background: transparent;
+      color: #0dcaf0;
+  }
+  .view-btn:hover {
+      background: #0dcaf0;
+      color: white;
+  }
+
+  /* Edit */
+  .edit-btn {
+      border: 2px solid #0d6efd;
+      background: transparent;
+      color: #0d6efd;
+  }
+  .edit-btn:hover {
+      background: #0d6efd;
+      color: white;
+  }
+
+  /* Delete */
+  .delete-btn {
+      border: 2px solid #dc3545;
+      background: transparent;
+      color: #dc3545;
+  }
+  .delete-btn:hover {
+      background: #dc3545;
+      color: white;
+  }
+</style>
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="fw-bold text-primary mb-0">Party Directory</h3>
+    <a href="{% url 'party:party_create' %}" class="btn btn-primary shadow-sm">
+      <i class="bi bi-plus-lg"></i> Add Party
+    </a>
+  </div>
+
+  {% if party_data %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th>Total Invoiced</th>
+              <th>Total Paid</th>
+              <th>Pending</th>
+              <th>Invoices</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for data in party_data %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ data.party.name }}</td>
+              <td>{{ data.party.contact_person|default:"—" }}</td>
+              <td>{{ data.party.phone|default:"—" }}</td>
+              <td>₹{{ data.total_invoiced|floatformat:2 }}</td>
+              <td class="text-success">₹{{ data.total_paid|floatformat:2 }}</td>
+              <td class="text-danger fw-semibold">₹{{ data.pending|floatformat:2 }}</td>
+              <td>{{ data.open_invoices }} open</td>
+
+              <td class="text-center">
+
+                <!-- VIEW BUTTON -->
+                <a href="{% url 'party:party_detail' data.party.id %}"
+                   class="action-btn view-btn me-2"
+                   data-bs-toggle="tooltip"
+                   title="View Party Details">
+                  <i class="bi bi-eye"></i>
+                </a>
+
+                <!-- EDIT BUTTON -->
+                <a href="{% url 'party:party_edit' data.party.id %}"
+                   class="action-btn edit-btn me-2"
+                   data-bs-toggle="tooltip"
+                   title="Edit Party">
+                  <i class="bi bi-pencil"></i>
+                </a>
+
+                <!-- DELETE BUTTON -->
+                <a href="{% url 'party:party_delete' data.party.id %}"
+                   class="action-btn delete-btn"
+                   data-bs-toggle="tooltip"
+                   title="Delete Party"
+                   onclick="return confirm('Are you sure you want to delete this party?');">
+                  <i class="bi bi-trash"></i>
+                </a>
+
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="alert alert-info text-center shadow-sm">No parties available yet.</div>
+  {% endif %}
+</div>
+
+<!-- Bootstrap Tooltip Activation -->
+<script>
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
+  });
+</script>
+
+{% endblock %}

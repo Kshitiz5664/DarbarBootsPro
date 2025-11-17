@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - BillingInventory</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ============================== GLOBAL BASE STYLING ============================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0a0a1a, #101024, #1b1b3a, #002b4d);
+      background-attachment: fixed;
+      background-size: 400% 400%;
+      color: #f5f5f5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      animation: bgShift 18s ease infinite;
+    }
+
+    @keyframes bgShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ============================== SCROLLBAR ============================== */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 194, 255, 0.6);
+      border-radius: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 194, 255, 0.9);
+    }
+
+    /* ============================== NAVBAR ============================== */
+    .navbar {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 20px 50px;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      animation: slideDown 0.8s ease-out;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.7rem;
+      color: #00c2ff !important;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.3s ease;
+    }
+
+    .navbar-brand:hover {
+      transform: scale(1.05);
+    }
+
+    .navbar-brand i {
+      font-size: 1.9rem;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .user-badge {
+      background: rgba(0, 194, 255, 0.15);
+      padding: 8px 18px;
+      border-radius: 25px;
+      border: 1px solid rgba(0, 194, 255, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #00c2ff;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .user-badge i {
+      font-size: 1.2rem;
+    }
+
+    .logout-link {
+      color: #ffb703;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      background: rgba(255, 183, 3, 0.1);
+      border: 1px solid rgba(255, 183, 3, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logout-link:hover {
+      background: rgba(255, 183, 3, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(255, 183, 3, 0.3);
+    }
+
+    /* ============================== DASHBOARD CONTAINER ============================== */
+    .dashboard-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 20px 60px;
+    }
+
+    .dashboard-container {
+      max-width: 1200px;
+      width: 100%;
+      animation: fadeIn 1s ease-out;
+    }
+
+    /* ============================== WELCOME CARD ============================== */
+    .welcome-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 50px 40px;
+      text-align: center;
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+      margin-bottom: 40px;
+      animation: scaleIn 0.8s ease-out;
+    }
+
+    .welcome-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .welcome-title {
+      font-weight: 800;
+      color: #00c2ff;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      margin-bottom: 15px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 30px rgba(0, 194, 255, 0.3);
+    }
+
+    .welcome-subtitle {
+      font-size: 1.2rem;
+      color: #b8b8b8;
+      margin-bottom: 10px;
+      font-weight: 300;
+    }
+
+    .welcome-time {
+      font-size: 0.95rem;
+      color: #888;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    /* ============================== WORKSPACE GRID ============================== */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+      margin-top: 20px;
+    }
+
+    .workspace-card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 35px 25px;
+      text-align: center;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      cursor: pointer;
+      text-decoration: none;
+      display: block;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .workspace-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .workspace-card:hover::before {
+      opacity: 1;
+    }
+
+    .workspace-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .workspace-icon {
+      font-size: 3.5rem;
+      margin-bottom: 20px;
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+
+    .workspace-card:hover .workspace-icon {
+      transform: scale(1.15) rotate(5deg);
+    }
+
+    .workspace-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .workspace-description {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .workspace-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* Individual Card Colors */
+    .card-wholesale {
+      background: linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 194, 255, 0.05));
+    }
+
+    .card-wholesale:hover {
+      background: linear-gradient(135deg, rgba(0, 123, 255, 0.15), rgba(0, 194, 255, 0.1));
+    }
+
+    .card-wholesale .workspace-icon { color: #007bff; }
+    .card-wholesale .workspace-badge {
+      background: rgba(0, 123, 255, 0.2);
+      color: #00c2ff;
+      border: 1px solid rgba(0, 123, 255, 0.3);
+    }
+
+    .card-retail {
+      background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05));
+    }
+
+    .card-retail:hover {
+      background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.1));
+    }
+
+    .card-retail .workspace-icon { color: #28a745; }
+    .card-retail .workspace-badge {
+      background: rgba(40, 167, 69, 0.2);
+      color: #20c997;
+      border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+
+    .card-items {
+      background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.05));
+    }
+
+    .card-items:hover {
+      background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.1));
+    }
+
+    .card-items .workspace-icon { color: #ffc107; }
+    .card-items .workspace-badge {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+      border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .card-register {
+      background: linear-gradient(135deg, rgba(23, 162, 184, 0.1), rgba(0, 194, 255, 0.05));
+    }
+
+    .card-register:hover {
+      background: linear-gradient(135deg, rgba(23, 162, 184, 0.15), rgba(0, 194, 255, 0.1));
+    }
+
+    .card-register .workspace-icon { color: #17a2b8; }
+    .card-register .workspace-badge {
+      background: rgba(23, 162, 184, 0.2);
+      color: #17a2b8;
+      border: 1px solid rgba(23, 162, 184, 0.3);
+    }
+
+    /* ============================== STATS SECTION ============================== */
+    .stats-section {
+      margin-top: 40px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stat-icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: #00c2ff;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ============================== ANIMATIONS ============================== */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ============================== RESPONSIVE DESIGN ============================== */
+    @media (max-width: 992px) {
+      .workspace-grid {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .navbar {
+        padding: 15px 25px;
+      }
+
+      .navbar-brand {
+        font-size: 1.3rem;
+      }
+
+      .user-info {
+        gap: 10px;
+      }
+
+      .user-badge {
+        display: none;
+      }
+
+      .dashboard-wrapper {
+        padding: 100px 15px 40px;
+      }
+
+      .welcome-card {
+        padding: 35px 25px;
+      }
+
+      .welcome-icon {
+        font-size: 3rem;
+      }
+
+      .workspace-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .navbar {
+        padding: 12px 20px;
+      }
+
+      .navbar-brand {
+        font-size: 1.1rem;
+      }
+
+      .logout-link {
+        padding: 8px 15px;
+        font-size: 0.85rem;
+      }
+
+      .welcome-card {
+        padding: 25px 20px;
+      }
+
+      .welcome-title {
+        font-size: 1.6rem;
+      }
+
+      .workspace-card {
+        padding: 25px 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <a class="navbar-brand" href="#">
+        <i class="bi bi-lightning-charge-fill"></i>
+        Billing Inventory
+      </a>
+      <div class="user-info">
+        <div class="user-badge">
+          <i class="bi bi-person-circle"></i>
+          <span>{{ request.user.username }}</span>
+        </div>
+        <a href="{% url 'UserAuth:logout' %}" class="logout-link">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard -->
+  <div class="dashboard-wrapper">
+    <div class="dashboard-container">
+      <!-- Welcome Card -->
+      <div class="welcome-card">
+        <div class="welcome-icon">👋</div>
+        <h1 class="welcome-title">Welcome Back, {{ request.user.username|title }}!</h1>
+        <p class="welcome-subtitle">Choose your workspace to get started</p>
+        <div class="welcome-time">
+          <i class="bi bi-clock"></i>
+          <span id="currentTime"></span>
+        </div>
+      </div>
+
+      <!-- Workspace Cards -->
+      <div class="workspace-grid">
+        <!-- Wholesale Card -->
+        <a href="{% url 'wholesale:dashboard_home' %}" class="workspace-card card-wholesale">
+          <div class="workspace-icon">
+            <i class="bi bi-boxes"></i>
+          </div>
+          <h3 class="workspace-title">Wholesale</h3>
+          <p class="workspace-description">Manage bulk orders, parties, and wholesale transactions</p>
+          <span class="workspace-badge">Business Portal</span>
+        </a>
+
+        <!-- Retail Card -->
+        <a href="{% url 'items:item_list' %}" class="workspace-card card-retail">
+          <div class="workspace-icon">
+            <i class="bi bi-shop"></i>
+          </div>
+          <h3 class="workspace-title">Retail</h3>
+          <p class="workspace-description">Handle retail sales, customer orders, and POS operations</p>
+          <span class="workspace-badge">Sales Counter</span>
+        </a>
+
+        <!-- Inventory Card -->
+        <a href="{% url 'items:item_list' %}" class="workspace-card card-items">
+          <div class="workspace-icon">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <h3 class="workspace-title">Inventory</h3>
+          <p class="workspace-description">Add, edit, and manage your product catalog</p>
+          <span class="workspace-badge">Stock Management</span>
+        </a>
+
+        <!-- User Management Card -->
+        <a href="{% url 'UserAuth:register' %}" class="workspace-card card-register">
+          <div class="workspace-icon">
+            <i class="bi bi-person-plus"></i>
+          </div>
+          <h3 class="workspace-title">User Management</h3>
+          <p class="workspace-description">Register new users and manage access permissions</p>
+          <span class="workspace-badge">Admin Panel</span>
+        </a>
+      </div>
+
+      <!-- Quick Stats Section -->
+      <div class="stats-section">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-icon">
+              <i class="bi bi-receipt"></i>
+            </div>
+            <div class="stat-value">---</div>
+            <div class="stat-label">Total Invoices</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <i class="bi bi-people"></i>
+            </div>
+            <div class="stat-value">---</div>
+            <div class="stat-label">Active Parties</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="stat-value">---</div>
+            <div class="stat-label">Items in Stock</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <i class="bi bi-currency-rupee"></i>
+            </div>
+            <div class="stat-value">---</div>
+            <div class="stat-label">Revenue</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Display current time and date
+    function updateTime() {
+      const now = new Date();
+      const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      document.getElementById('currentTime').textContent = now.toLocaleDateString('en-US', options);
+    }
+
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Add stagger animation to cards
+    document.addEventListener('DOMContentLoaded', function() {
+      const cards = document.querySelectorAll('.workspace-card');
+      cards.forEach((card, index) => {
+        card.style.animation = `fadeIn 0.6s ease-out ${index * 0.1}s both`;
+      });
+
+      // Add ripple effect on click
+      cards.forEach(card => {
+        card.addEventListener('click', function(e) {
+          const ripple = document.createElement('span');
+          const rect = card.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          const x = e.clientX - rect.left - size / 2;
+          const y = e.clientY - rect.top - size / 2;
+          
+          ripple.style.width = ripple.style.height = size + 'px';
+          ripple.style.left = x + 'px';
+          ripple.style.top = y + 'px';
+          ripple.style.position = 'absolute';
+          ripple.style.borderRadius = '50%';
+          ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+          ripple.style.transform = 'scale(0)';
+          ripple.style.animation = 'ripple 0.6s ease-out';
+          ripple.style.pointerEvents = 'none';
+          
+          card.appendChild(ripple);
+          
+          setTimeout(() => ripple.remove(), 600);
+        });
+      });
+    });
+
+    // Add ripple animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes ripple {
+        to {
+          transform: scale(4);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+
+</html>

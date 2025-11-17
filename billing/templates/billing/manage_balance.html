@@ -1,0 +1,394 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Manage Old Balances{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <div class="card form-card">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-calculator"></i> Balance Management
+                </h3>
+                <p class="form-subtitle">Manage party-wise old balances and outstanding amounts</p>
+            </div>
+
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="form-section">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="section-title mb-0">
+                            <i class="bi bi-list-check"></i> Balance Entries
+                        </h5>
+                        <button type="button" class="btn btn-outline-info btn-sm" id="addBalanceBtn">
+                            <i class="bi bi-plus-circle"></i> Add New Balance
+                        </button>
+                    </div>
+                    
+                    {{ formset.management_form }}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered balance-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Party</th>
+                                    <th style="width: 25%;">Item</th>
+                                    <th style="width: 15%;">Quantity</th>
+                                    <th style="width: 15%;">Price (₹)</th>
+                                    <th style="width: 12%;">Discount %</th>
+                                    <th style="width: 6%;">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="balanceTableBody">
+                                {% for form in formset %}
+                                <tr class="balance-row {% if form.instance.pk %}existing{% else %}new{% endif %}">
+                                    <td>
+                                        {{ form.party }}
+                                        {{ form.id }}
+                                    </td>
+                                    <td>{{ form.item }}</td>
+                                    <td>{{ form.quantity }}</td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">₹</span>
+                                            {{ form.price }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            {{ form.discount_percent }}
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {{ form.DELETE }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if formset.non_form_errors %}
+                        <div class="alert alert-danger mt-3">
+                            {{ formset.non_form_errors }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Summary Section -->
+                <div class="form-section summary-section">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="bi bi-receipt stat-icon"></i>
+                                <div class="stat-content">
+                                    <h6>Total Entries</h6>
+                                    <p id="totalEntries">{{ formset.total_form_count }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="bi bi-people stat-icon"></i>
+                                <div class="stat-content">
+                                    <h6>Parties</h6>
+                                    <p id="uniqueParties">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <i class="bi bi-box-seam stat-icon"></i>
+                                <div class="stat-content">
+                                    <h6>Items</h6>
+                                    <p id="uniqueItems">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-save"></i> Save All Changes
+                    </button>
+                    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* === Core Card Styling === */
+.form-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+    margin-bottom: 60px; /* spacing below card */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); /* premium depth */
+}
+
+.form-header {
+    background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(103, 58, 183, 0.15));
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-title {
+    color: #9c27b0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle {
+    color: #b8b8b8;
+    margin: 8px 0 0 0;
+    font-size: 0.95rem;
+}
+
+/* === Section Styling === */
+.form-section {
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.section-title {
+    color: #9c27b0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* === Table === */
+.balance-table {
+    margin-top: 15px;
+}
+
+.balance-table thead {
+    background: rgba(156, 39, 176, 0.15);
+}
+
+.balance-table th {
+    color: #9c27b0;
+    font-weight: 600;
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 12px 10px;
+}
+
+.balance-table td {
+    border-color: rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+    padding: 10px;
+}
+
+.balance-row.new {
+    background: rgba(156, 39, 176, 0.05);
+}
+
+/* === Inputs & Selects === */
+.form-control, .form-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f5f5f5;
+    border-radius: 8px;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #9c27b0;
+    box-shadow: 0 0 0 0.2rem rgba(156, 39, 176, 0.25);
+    color: #fff;
+}
+
+/* Dark dropdown menu */
+select.form-select option {
+    background-color: #1c1c1c;
+    color: #f5f5f5;
+}
+select.form-select:invalid {
+    color: #a0a0a0;
+}
+select.form-select:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(156, 39, 176, 0.25);
+}
+
+.input-group-text {
+    background: rgba(156, 39, 176, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #9c27b0;
+    font-weight: 600;
+}
+
+/* === Table Scroll === */
+.table-responsive {
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 39, 176, 0.4) transparent;
+}
+
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 39, 176, 0.4);
+    border-radius: 8px;
+}
+
+/* === Summary Cards === */
+.summary-section {
+    background: rgba(156, 39, 176, 0.05);
+}
+.stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+}
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+.stat-icon {
+    font-size: 2.5rem;
+    color: #9c27b0;
+}
+.stat-content h6 {
+    color: #b8b8b8;
+    font-size: 0.85rem;
+    margin: 0 0 5px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.stat-content p {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* === Buttons === */
+.btn-success {
+    background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+    border: none;
+    color: #fff;
+    transition: all 0.3s ease;
+}
+.btn-success:hover {
+    background: linear-gradient(135deg, #ab47bc, #8e24aa);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(156, 39, 176, 0.4);
+}
+.btn-outline-secondary {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #dcdcdc;
+}
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* === Form Actions === */
+.form-actions {
+    padding: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* === Animation === */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Mobile === */
+@media (max-width: 768px) {
+    .form-header { padding: 20px; }
+    .form-section { padding: 20px; }
+    .form-title { font-size: 1.4rem; }
+    .balance-table th, .balance-table td { font-size: 0.85rem; padding: 6px; }
+    .btn-lg { font-size: 1rem; padding: 10px 16px; }
+    .stat-card { padding: 15px; margin-bottom: 10px; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update party/item summary dynamically
+    function updateSummary() {
+        const rows = document.querySelectorAll('.balance-row:not([style*="display: none"])');
+        const parties = new Set();
+        const items = new Set();
+        rows.forEach(row => {
+            const deleteCheckbox = row.querySelector('input[type="checkbox"][name*="DELETE"]');
+            if (!deleteCheckbox || !deleteCheckbox.checked) {
+                const partySelect = row.querySelector('select[name*="party"]');
+                const itemSelect = row.querySelector('select[name*="item"]');
+                if (partySelect && partySelect.value) parties.add(partySelect.value);
+                if (itemSelect && itemSelect.value) items.add(itemSelect.value);
+            }
+        });
+        document.getElementById('uniqueParties').textContent = parties.size;
+        document.getElementById('uniqueItems').textContent = items.size;
+    }
+
+    // Handle delete checkbox visual state
+    document.querySelectorAll('input[type="checkbox"][name*="DELETE"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('.balance-row');
+            row.style.opacity = this.checked ? '0.5' : '1';
+            row.style.textDecoration = this.checked ? 'line-through' : 'none';
+            updateSummary();
+        });
+    });
+
+    // Auto-update summary
+    document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', updateSummary);
+    });
+
+    updateSummary();
+});
+</script>
+{% endblock %}

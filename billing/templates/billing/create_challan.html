@@ -1,0 +1,540 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Create Delivery Challan{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card form-card">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-truck"></i> New Delivery Challan
+                </h3>
+                <p class="form-subtitle">Create a delivery challan for goods transport (Challan number will be auto-generated)</p>
+            </div>
+
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Challan Details Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-file-earmark-text"></i> Challan Information
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">
+                                Date <span class="text-danger">*</span>
+                            </label>
+                            {{ form.date }}
+                            {% if form.date.errors %}
+                                <div class="invalid-feedback d-block">{{ form.date.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.date.help_text }}</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.party.id_for_label }}" class="form-label">
+                                Party <span class="text-danger">*</span>
+                            </label>
+                            {{ form.party }}
+                            {% if form.party.errors %}
+                                <div class="invalid-feedback d-block">{{ form.party.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.party.help_text }}</small>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.invoice.id_for_label }}" class="form-label">
+                                Related Invoice (Optional)
+                            </label>
+                            {{ form.invoice }}
+                            {% if form.invoice.errors %}
+                                <div class="invalid-feedback d-block">{{ form.invoice.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.invoice.help_text }}</small>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.transport_details.id_for_label }}" class="form-label">
+                                Transport Details
+                            </label>
+                            {{ form.transport_details }}
+                            {% if form.transport_details.errors %}
+                                <div class="invalid-feedback d-block">{{ form.transport_details.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Challan Items Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-box-seam"></i> Items to Deliver
+                    </h5>
+                    
+                    {{ formset.management_form }}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered challan-items-table" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60%;">Item <span class="text-danger">*</span></th>
+                                    <th style="width: 30%;">Quantity <span class="text-danger">*</span></th>
+                                    <th style="width: 10%;">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                {% for form in formset %}
+                                <tr class="item-row">
+                                    <td>
+                                        {{ form.item }}
+                                        {% if form.item.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.item.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ form.quantity }}
+                                        {% if form.quantity.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.quantity.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {{ form.DELETE }}
+                                    </td>
+                                    {{ form.id }}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-info" id="addItemBtn">
+                        <i class="bi bi-plus-circle"></i> Add More Items
+                    </button>
+                </div>
+                <!-- Challan Options -->
+<div class="form-section">
+    <h5 class="section-title">
+        <i class="bi bi-gear"></i> Challan Options
+    </h5>
+    
+    <div class="challan-options-card">
+        <div class="row g-3">
+            <div class="col-md-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="download_pdf" id="download_pdf">
+                    <label class="form-check-label" for="download_pdf">
+                        <i class="bi bi-download text-danger"></i> Download PDF Challan
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle"></i> Create Challan
+                    </button>
+                    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background: linear-gradient(160deg, #0a0a0a, #111, #050505);
+    color: #e0e0e0;
+    padding-bottom: 80px;
+}
+
+/* --- Card and Layout --- */
+.form-card {
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(18px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* --- Header --- */
+.form-header {
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.25), rgba(100, 0, 0, 0.2));
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-title {
+    color: #e63946;
+    font-size: 1.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.form-subtitle {
+    color: #b5b5b5;
+    margin: 8px 0 0;
+    font-size: 0.95rem;
+}
+
+/* --- Section --- */
+.form-section {
+    padding: 30px;
+    background: rgba(15, 15, 15, 0.9);
+}
+
+.section-title {
+    color: #e63946;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* --- Inputs --- */
+.form-label {
+    color: #d0d0d0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-control,
+.form-select,
+textarea.form-control {
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f8f8f8;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+    background: rgba(45, 45, 45, 1);
+    border-color: #e63946;
+    box-shadow: 0 0 0 0.25rem rgba(230, 57, 70, 0.25);
+    color: #fff;
+}
+
+/* --- Dropdown Menu --- */
+select.form-select option {
+    background-color: #111;
+    color: #fff;
+}
+
+/* --- Help Text --- */
+.form-text.text-muted {
+    color: #888 !important;
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+/* --- Table Styling --- */
+.challan-items-table {
+    background: rgba(20, 20, 20, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.challan-items-table thead {
+    background: rgba(230, 57, 70, 0.2);
+    color: #e63946;
+}
+
+.challan-items-table th,
+.challan-items-table td {
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 12px;
+    vertical-align: middle;
+}
+
+.challan-items-table input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #e63946;
+}
+
+/* --- Buttons --- */
+.btn-primary {
+    background: linear-gradient(135deg, #e63946, #b81f2a);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #b81f2a, #e63946);
+    box-shadow: 0 0 25px rgba(230, 57, 70, 0.6);
+    transform: translateY(-1px);
+}
+
+.btn-outline-info {
+    border: 1px solid rgba(23, 162, 184, 0.5);
+    color: #17a2b8;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-info:hover {
+    background: rgba(23, 162, 184, 0.2);
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.btn-outline-secondary {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #bbb;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* --- Actions --- */
+.form-actions {
+    padding: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    background: rgba(15, 15, 15, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* --- Validation --- */
+.text-danger {
+    color: #ff6b6b !important;
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+/* --- Row Deletion Visual Effect --- */
+.item-row.marked-for-deletion {
+    opacity: 0.5;
+    text-decoration: line-through;
+    background: rgba(230, 57, 70, 0.1);
+}
+
+/* --- Animation --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.item-row {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .form-header {
+        padding: 20px;
+    }
+    .form-section {
+        padding: 20px;
+    }
+    .form-title {
+        font-size: 1.4rem;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+}
+
+/* Challan Options Card */
+.challan-options-card {
+    background: rgba(230, 57, 70, 0.1);
+    border: 1px solid rgba(230, 57, 70, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.form-check-input {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-check-input:checked {
+    background-color: #e63946;
+    border-color: #e63946;
+}
+
+.form-check-label {
+    color: #e0e0e0;
+    cursor: pointer;
+    margin-left: 10px;
+    font-weight: 500;
+}
+
+.form-check-label i {
+    margin-right: 5px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    if (dateInput && !dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+
+    // Dynamic formset handling for "Add More Items"
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    const totalFormsInput = document.querySelector('#id_challan_items-TOTAL_FORMS');
+    
+    if (addItemBtn && itemsTableBody && totalFormsInput) {
+        addItemBtn.addEventListener('click', function() {
+            const currentFormCount = parseInt(totalFormsInput.value);
+            const newFormIndex = currentFormCount;
+            
+            // Get the first row as a template
+            const firstRow = itemsTableBody.querySelector('.item-row');
+            if (!firstRow) {
+                console.error('No template row found');
+                return;
+            }
+            
+            // Clone the first row
+            const newRow = firstRow.cloneNode(true);
+            
+            // Remove any marked-for-deletion class
+            newRow.classList.remove('marked-for-deletion');
+            
+            // Update all form field names and IDs in the new row
+            const fields = newRow.querySelectorAll('input, select, textarea');
+            fields.forEach(field => {
+                if (field.name) {
+                    // Replace the form index in the name
+                    field.name = field.name.replace(/-\d+-/, `-${newFormIndex}-`);
+                }
+                if (field.id) {
+                    // Replace the form index in the id
+                    field.id = field.id.replace(/-\d+-/, `-${newFormIndex}-`);
+                }
+                
+                // Clear the values for the new row (except DELETE checkbox)
+                if (field.type !== 'checkbox' || !field.name.includes('DELETE')) {
+                    field.value = '';
+                    field.selectedIndex = 0; // Reset select fields
+                }
+                if (field.type === 'checkbox' && field.name.includes('DELETE')) {
+                    field.checked = false;
+                }
+                
+                // Remove any error messages
+                const errorDiv = field.parentElement.querySelector('.invalid-feedback');
+                if (errorDiv) {
+                    errorDiv.remove();
+                }
+            });
+            
+            // Append the new row to the table
+            itemsTableBody.appendChild(newRow);
+            
+            // Increment the total forms count
+            totalFormsInput.value = newFormIndex + 1;
+            
+            // Add a subtle animation
+            newRow.style.opacity = '0';
+            setTimeout(() => {
+                newRow.style.transition = 'opacity 0.3s ease';
+                newRow.style.opacity = '1';
+            }, 10);
+        });
+    }
+    
+    // Handle DELETE checkbox styling
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox' && e.target.name.includes('DELETE')) {
+            const row = e.target.closest('tr');
+            if (e.target.checked) {
+                row.classList.add('marked-for-deletion');
+            } else {
+                row.classList.remove('marked-for-deletion');
+            }
+        }
+    });
+    
+    // Form validation before submit
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let hasItems = false;
+            const rows = itemsTableBody.querySelectorAll('.item-row');
+            
+            rows.forEach(row => {
+                const deleteCheckbox = row.querySelector('input[type="checkbox"][name*="DELETE"]');
+                const itemSelect = row.querySelector('select[name*="item"]');
+                const quantityInput = row.querySelector('input[name*="quantity"]');
+                
+                // Check if row is not marked for deletion and has values
+                if (!deleteCheckbox.checked && itemSelect.value && quantityInput.value) {
+                    hasItems = true;
+                }
+            });
+            
+            if (!hasItems) {
+                e.preventDefault();
+                alert('Please add at least one item to the challan.');
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

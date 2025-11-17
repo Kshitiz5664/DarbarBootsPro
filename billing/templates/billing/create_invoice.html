@@ -1,0 +1,949 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Create New Invoice{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Invoices
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<section class="invoice-bg">
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card form-card shadow-lg">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-receipt"></i> New Invoice
+                </h3>
+                <p class="form-subtitle">Create a new invoice for your party</p>
+            </div>
+
+            <!-- Error Display -->
+            {% if form.errors or formset.errors %}
+            <div class="alert alert-danger m-3">
+                <h5>⚠️ Form Errors:</h5>
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+                    {% endfor %}
+                    {% if formset.errors %}
+                        <li><strong>Formset Errors:</strong> {{ formset.errors }}</li>
+                    {% endif %}
+                    {% if formset.non_form_errors %}
+                        <li><strong>General Errors:</strong> {{ formset.non_form_errors }}</li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" id="invoiceForm" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Party Information -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-people"></i> Party Information
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Select Party <span class="text-danger">*</span></label>
+                            {{ form.party }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Or Create New Party</label>
+                            {{ form.new_party_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">New Party Phone</label>
+                            {{ form.new_party_phone }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Details -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-file-text"></i> Invoice Details
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Invoice Number <span class="text-danger">*</span></label>
+                            {{ form.invoice_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            {{ form.date }}
+                        </div>
+
+                        <!-- Limit Checkbox -->
+                        <div class="col-md-12 mt-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="id_is_limit_enabled"
+                                       name="is_limit_enabled"
+                                       value="on"
+                                       {% if form.is_limit_enabled.value %}checked{% endif %}>
+                                <label class="form-check-label text-light" for="id_is_limit_enabled">
+                                    <i class="bi bi-shield-check"></i> Enable Invoice Limit
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="limitAmountDiv" style="display:none;">
+                            <label class="form-label">Limit Amount (₹)</label>
+                            {{ form.limit_amount }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-cart"></i> Invoice Items
+                    </h5>
+                    {{ formset.management_form }}
+                    <div class="table-responsive">
+                        <table class="table table-bordered invoice-items-table" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:25%;">Item</th>
+                                    <th style="width:15%;">New Item</th>
+                                    <th style="width:10%;">Qty</th>
+                                    <th style="width:12%;">Rate (₹)</th>
+                                    <th style="width:12%;">GST (₹)</th>
+                                    <th style="width:12%;">Discount (₹)</th>
+                                    <th style="width:12%;">Total (₹)</th>
+                                    <th style="width:5%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                {% for form in formset %}
+                                <tr class="item-row">
+                                    <td>{{ form.item }}</td>
+                                    <td>{{ form.new_item_name }}</td>
+                                    <td>{{ form.quantity }}</td>
+                                    <td>{{ form.rate }}</td>
+                                    <td>{{ form.gst_amount }}</td>
+                                    <td>{{ form.discount_amount }}</td>
+                                    <td>{{ form.total }}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger remove-row-btn">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                    {{ form.id }}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="6" class="text-end"><strong>Grand Total:</strong></td>
+                                    <td><strong id="grandTotal">₹ 0.00</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-outline-info mt-2" id="addItemBtn">
+                        <i class="bi bi-plus-circle"></i> Add More Items
+                    </button>
+                </div>
+
+                <!-- Invoice Options -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-gear"></i> Invoice Options
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="id_send_whatsapp"
+                                       name="send_whatsapp"
+                                       value="on">
+                                <label class="form-check-label text-light" for="id_send_whatsapp">
+                                    <i class="bi bi-whatsapp text-success"></i> Send Invoice via WhatsApp
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="id_download_pdf"
+                                       name="download_pdf"
+                                       value="on">
+                                <label class="form-check-label text-light" for="id_download_pdf">
+                                    <i class="bi bi-download text-info"></i> Download PDF Invoice
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <i class="bi bi-check-circle"></i> Create Invoice
+                    </button>
+                    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</section>
+
+<style>
+/* ==================== INVOICE PAGE LAYOUT ==================== */
+.invoice-bg { 
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f); 
+    padding: 60px 0; 
+    min-height: 100vh; 
+}
+
+.form-card { 
+    background: rgba(255, 255, 255, 0.08); 
+    backdrop-filter: blur(16px); 
+    border-radius: 20px; 
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    margin-top: 30px; 
+    overflow: hidden; 
+}
+
+/* ==================== FORM HEADER ==================== */
+.form-header { 
+    background: linear-gradient(135deg, rgba(0, 194, 255, 0.2), rgba(0, 123, 255, 0.15)); 
+    padding: 30px; 
+}
+
+.form-title { 
+    color: #00c2ff; 
+    font-size: 1.8rem; 
+    font-weight: 700; 
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle { 
+    color: #b8b8b8; 
+    font-size: 0.95rem;
+    margin: 8px 0 0 0;
+}
+
+/* ==================== FORM SECTIONS ==================== */
+.form-section { 
+    padding: 30px; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+}
+
+.section-title { 
+    color: #00c2ff; 
+    font-size: 1.2rem; 
+    font-weight: 600; 
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-label { 
+    color: #e0e0e0; 
+    font-weight: 500; 
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+/* ==================== FORM INPUTS - MAXIMUM VISIBILITY ==================== */
+
+/* Base Input Styles - Dark Black Background for Perfect Visibility */
+.form-control, .form-select { 
+    background: #000000 !important; /* Pure black background */
+    border: 1px solid rgba(0, 194, 255, 0.3); 
+    color: #ffffff !important; /* Pure white text */
+    border-radius: 10px; 
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+/* Focus State - Enhanced Visibility */
+.form-control:focus, .form-select:focus {
+    background: #000000 !important;
+    border-color: #00c2ff;
+    box-shadow: 0 0 0 0.25rem rgba(0, 194, 255, 0.3);
+    color: #ffffff !important;
+    outline: none;
+}
+
+/* Dropdown Select - Enhanced Cursor */
+select.form-select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2300c2ff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 12px;
+}
+
+/* Dropdown Options - PERFECT VISIBILITY */
+select.form-select option {
+    background-color: #000000 !important; /* Pure black background */
+    color: #ffffff !important; /* Pure white text */
+    padding: 12px 8px !important;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+select.form-select option:hover,
+select.form-select option:focus {
+    background-color: #1a1a1a !important; /* Slightly lighter on hover */
+    color: #00c2ff !important; /* Cyan highlight text */
+}
+
+select.form-select option:checked,
+select.form-select option:active {
+    background-color: #0d47a1 !important; /* Deep blue when selected */
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Disabled Input State */
+.form-control:disabled,
+.form-select:disabled {
+    background: rgba(0, 0, 0, 0.5) !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Readonly Input State */
+.form-control[readonly] {
+    background: rgba(0, 0, 0, 0.6) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Placeholder Text Visibility */
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.form-control:focus::placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ==================== TABLE INPUTS - CONSISTENT DARK THEME ==================== */
+.invoice-items-table { 
+    background: rgba(10, 10, 20, 0.6); 
+    border: 1px solid rgba(0, 194, 255, 0.25); 
+    border-radius: 10px; 
+    overflow: hidden;
+}
+
+.invoice-items-table thead { 
+    background: rgba(0, 194, 255, 0.18); 
+}
+
+.invoice-items-table th { 
+    color: #00c2ff; 
+    border-color: rgba(0, 194, 255, 0.25); 
+    font-weight: 600;
+    padding: 12px;
+    text-align: center;
+}
+
+.invoice-items-table td { 
+    color: #e0e0e0; 
+    border-color: rgba(0, 194, 255, 0.15); 
+    background: rgba(20, 20, 40, 0.5); 
+    padding: 8px;
+}
+
+.invoice-items-table tr:hover td { 
+    background: rgba(0, 194, 255, 0.08); 
+}
+
+/* Table Input Fields - Maximum Visibility */
+.invoice-items-table input.form-control,
+.invoice-items-table select.form-select {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(0, 194, 255, 0.25);
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+.invoice-items-table input.form-control:focus,
+.invoice-items-table select.form-select:focus {
+    background: #000000 !important;
+    border-color: #00c2ff;
+    box-shadow: 0 0 5px rgba(0, 194, 255, 0.4);
+    color: #ffffff !important;
+}
+
+/* Table Footer - Grand Total */
+.invoice-items-table tfoot td {
+    background: rgba(0, 194, 255, 0.15);
+    color: #00c2ff;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 15px;
+}
+
+/* ==================== NUMBER & DATE INPUTS ==================== */
+
+/* Number Input Spinner Buttons (Chrome/Safari) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 40px;
+    filter: invert(1) brightness(1.5); /* Make arrows white and bright */
+}
+
+/* Firefox Number Input */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Date Input Calendar Icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.2); /* Make calendar icon white */
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* ==================== CHECKBOXES & SWITCHES ==================== */
+.form-check-input { 
+    cursor: pointer; 
+    border: 1px solid rgba(0, 194, 255, 0.3); 
+    background-color: rgba(255, 255, 255, 0.1);
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-check-input:checked { 
+    background-color: #00c2ff; 
+    border-color: #00c2ff; 
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(0, 194, 255, 0.25);
+    border-color: #00c2ff;
+}
+
+.form-check-label {
+    color: #e0e0e0;
+    cursor: pointer;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+/* ==================== BUTTONS ==================== */
+.remove-row-btn { 
+    border-radius: 8px; 
+    padding: 4px 8px; 
+    transition: all 0.3s ease;
+}
+
+.remove-row-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+}
+
+.btn-outline-info {
+    border: 1px solid rgba(23, 162, 184, 0.5);
+    color: #17a2b8;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-info:hover {
+    background: rgba(23, 162, 184, 0.2);
+    border-color: #17a2b8;
+    color: #17a2b8;
+    transform: translateY(-1px);
+}
+
+/* ==================== FORM ACTIONS ==================== */
+.form-actions { 
+    padding: 30px; 
+    display: flex; 
+    justify-content: center; 
+    gap: 15px;
+    background: rgba(10, 10, 20, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #00c2ff, #0099cc);
+    border: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 30px;
+    font-size: 1rem;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0099cc, #00c2ff);
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(0, 194, 255, 0.5);
+}
+
+.btn-success:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-outline-secondary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #b8b8b8;
+    transition: all 0.3s ease;
+    padding: 12px 30px;
+    font-size: 1rem;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+/* ==================== ALERTS & VALIDATION ==================== */
+.text-danger { 
+    color: #ff6b6b !important; 
+    font-weight: 600;
+}
+
+.alert { 
+    border-radius: 10px; 
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(220, 53, 69, 0.15);
+}
+
+.alert-danger {
+    color: #ff6b6b;
+    background: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.4);
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 5px;
+    display: block;
+}
+
+.is-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.form-card {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.item-row {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+    .invoice-bg {
+        padding: 30px 0;
+    }
+    
+    .form-section { 
+        padding: 20px; 
+    }
+    
+    .form-header { 
+        padding: 20px; 
+    }
+    
+    .form-title { 
+        font-size: 1.4rem; 
+    }
+    
+    .section-title {
+        font-size: 1rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        padding: 20px;
+    }
+    
+    .btn-success,
+    .btn-outline-secondary {
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .invoice-items-table {
+        font-size: 12px;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        padding: 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    .form-title {
+        font-size: 1.2rem;
+    }
+    
+    .form-subtitle {
+        font-size: 0.85rem;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        font-size: 11px;
+        padding: 4px;
+    }
+}
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+    .invoice-bg {
+        background: white;
+        padding: 0;
+    }
+    
+    .form-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .form-actions,
+    .remove-row-btn,
+    #addItemBtn {
+        display: none;
+    }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+    outline: 2px solid #00c2ff;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .form-control,
+    .form-select {
+        border-width: 2px;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-width: 3px;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const parties = JSON.parse('{{ parties|escapejs }}' || '[]');
+    const partySelect = document.getElementById('id_party');
+    const newPartyPhone = document.getElementById('id_new_party_phone');
+    const enableLimitCheckbox = document.getElementById('id_is_limit_enabled');
+    const limitAmountDiv = document.getElementById('limitAmountDiv');
+    const limitAmountInput = document.getElementById('{{ form.limit_amount.id_for_label }}');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    const grandTotalEl = document.getElementById('grandTotal');
+    const invoiceForm = document.getElementById('invoiceForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const formPrefix = '{{ formset.prefix }}';
+    const totalFormsInput = document.getElementById(`id_${formPrefix}-TOTAL_FORMS`);
+    const safeFloat = v => parseFloat(v) || 0;
+
+    console.log('🚀 Invoice form initialized with corrected GST calculation');
+
+    // ==================== Limit Checkbox Handler ====================
+    function updateLimitUI() {
+        if (enableLimitCheckbox && enableLimitCheckbox.checked) {
+            limitAmountDiv.style.display = 'block';
+            limitAmountInput.required = true;
+            limitAmountInput.removeAttribute('readonly');
+        } else {
+            limitAmountDiv.style.display = 'none';
+            limitAmountInput.required = false;
+            limitAmountInput.value = '0.00';
+            limitAmountInput.setAttribute('readonly', 'readonly');
+        }
+    }
+    
+    if (enableLimitCheckbox) {
+        enableLimitCheckbox.addEventListener('change', updateLimitUI);
+        updateLimitUI();
+    }
+
+    // ==================== Party Phone Autofill ====================
+    if (partySelect) {
+        partySelect.addEventListener('change', () => {
+            const selected = parties.find(p => String(p.id) === String(partySelect.value));
+            if (selected && selected.phone) {
+                newPartyPhone.value = selected.phone;
+                newPartyPhone.readOnly = true;
+            } else {
+                newPartyPhone.value = '';
+                newPartyPhone.readOnly = false;
+            }
+        });
+    }
+
+    // ==================== GST Calculation Functions ====================
+    async function fetchItemGSTPercent(itemId) {
+        if (!itemId) return 0;
+        try {
+            const response = await fetch(`/billing/api/item-rate/${itemId}/`);
+            if (!response.ok) throw new Error('Failed to fetch item data');
+            const data = await response.json();
+            return safeFloat(data.gst_percent || 0);
+        } catch (err) {
+            console.error('Error fetching GST percent:', err);
+            return 0;
+        }
+    }
+
+    function calcTotal(row) {
+        const qty = safeFloat(row.querySelector("input[name$='-quantity']")?.value);
+        const rate = safeFloat(row.querySelector("input[name$='-rate']")?.value);
+        const gstInput = row.querySelector("input[name$='-gst_amount']");
+        const discount = safeFloat(row.querySelector("input[name$='-discount_amount']")?.value);
+        const totalInput = row.querySelector("input[name$='-total']");
+        
+        const itemSelect = row.querySelector("select[name$='-item']");
+        const itemId = itemSelect ? itemSelect.value : null;
+        
+        if (itemId) {
+            fetchItemGSTPercent(itemId).then(gstPercent => {
+                const baseAmount = qty * rate;
+                const gstAmount = (baseAmount * gstPercent) / 100;
+                const total = baseAmount + gstAmount - discount;
+                
+                if (gstInput) gstInput.value = gstAmount.toFixed(2);
+                if (totalInput) totalInput.value = total.toFixed(2);
+                
+                calcGrand();
+            });
+        } else {
+            const gst = safeFloat(gstInput?.value || 0);
+            const baseAmount = qty * rate;
+            const total = baseAmount + gst - discount;
+            
+            if (totalInput) totalInput.value = total.toFixed(2);
+            calcGrand();
+        }
+    }
+
+    function calcGrand() {
+        let total = 0;
+        document.querySelectorAll("input[name$='-total']").forEach(inp => total += safeFloat(inp.value));
+        grandTotalEl.textContent = "₹ " + total.toFixed(2);
+        return total;
+    }
+
+    // ==================== Event Listeners ====================
+    itemsTableBody.addEventListener('input', e => {
+        if (['quantity', 'rate', 'discount_amount'].some(f => e.target.name.includes(f))) {
+            const row = e.target.closest('tr');
+            if (row) calcTotal(row);
+        }
+    });
+
+    itemsTableBody.addEventListener('change', async (e) => {
+        if (e.target && e.target.name && e.target.name.includes('-item')) {
+            const row = e.target.closest('tr');
+            const itemId = e.target.value;
+            if (!itemId) { 
+                const gstInput = row.querySelector("input[name$='-gst_amount']");
+                if (gstInput) gstInput.value = '0.00';
+                calcTotal(row); 
+                return; 
+            }
+
+            try {
+                const response = await fetch(`/billing/api/item-rate/${itemId}/`);
+                if (!response.ok) throw new Error('Failed to fetch rate');
+                const data = await response.json();
+
+                const rateInput = row.querySelector("input[name$='-rate']");
+                if (rateInput) rateInput.value = Number(data.wholesale_rate || 0).toFixed(2);
+                
+                calcTotal(row);
+            } catch (err) {
+                console.error('Error fetching item rate:', err);
+            }
+        }
+    });
+
+    addItemBtn.addEventListener('click', () => {
+        const index = Number(totalFormsInput.value || 0);
+        const templateRow = itemsTableBody.querySelector('.item-row:last-child');
+        if (!templateRow) {
+            console.error('❌ No template row found!');
+            return;
+        }
+
+        const newRow = templateRow.cloneNode(true);
+        
+        newRow.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.name) input.name = input.name.replace(/-\d+-/, `-${index}-`);
+            if (input.id) input.id = input.id.replace(/-\d+-/, `-${index}-`);
+            
+            if (input.type === 'number') {
+                input.value = '0';
+            } else if (input.type === 'text') {
+                input.value = '';
+            } else if (input.tagName.toLowerCase() === 'select') {
+                input.selectedIndex = 0;
+                input.value = '';
+            } else if (input.type === 'checkbox' || input.type === 'radio') {
+                input.checked = false;
+            } else if (input.type === 'hidden') {
+                input.value = '';
+            }
+            
+            input.classList.remove('is-invalid');
+        });
+
+        itemsTableBody.appendChild(newRow);
+        totalFormsInput.value = index + 1;
+        calcTotal(newRow);
+    });
+
+    itemsTableBody.addEventListener('click', e => {
+        const btn = e.target.closest('.remove-row-btn');
+        if (!btn) return;
+        const rows = itemsTableBody.querySelectorAll('.item-row');
+        if (rows.length <= 1) {
+            alert('⚠️ At least one item is required!');
+            return;
+        }
+        
+        const row = btn.closest('tr');
+        const deleteInput = row.querySelector("input[name$='-DELETE']");
+        if (deleteInput) {
+            deleteInput.checked = true;
+            row.style.display = 'none';
+        } else {
+            row.remove();
+            totalFormsInput.value = Math.max(1, Number(totalFormsInput.value) - 1);
+        }
+        
+        calcGrand();
+    });
+
+    // ==================== Form Submission ====================
+    invoiceForm.addEventListener('submit', function(e) {
+        const validRows = Array.from(document.querySelectorAll('.item-row')).filter(row => {
+            const itemSelect = row.querySelector("select[name$='-item']");
+            const newItemInput = row.querySelector("input[name$='-new_item_name']");
+            const qtyInput = row.querySelector("input[name$='-quantity']");
+            const rateInput = row.querySelector("input[name$='-rate']");
+            const deleteInput = row.querySelector("input[name$='-DELETE']");
+            
+            if (deleteInput && deleteInput.checked) return false;
+            
+            const hasItem = (itemSelect && itemSelect.value) || (newItemInput && newItemInput.value.trim());
+            const hasQty = qtyInput && parseFloat(qtyInput.value) > 0;
+            const hasRate = rateInput && parseFloat(rateInput.value) > 0;
+            
+            return hasItem && hasQty && hasRate;
+        });
+        
+        if (validRows.length === 0) {
+            e.preventDefault();
+            alert('❌ Please add at least one valid item with quantity and rate!');
+            return false;
+        }
+        
+        const total = calcGrand();
+
+        const newPartyName = document.getElementById('id_new_party_name');
+        if (!partySelect.value && !newPartyName.value.trim()) {
+            e.preventDefault();
+            alert('❌ Please select a party or create a new one!');
+            return false;
+        }
+
+        if (enableLimitCheckbox && enableLimitCheckbox.checked) {
+            const limit = safeFloat(limitAmountInput.value);
+            if (!limit || limit <= 0) {
+                e.preventDefault();
+                alert('⚠️ Please enter a valid limit amount!');
+                limitAmountInput.focus();
+                return false;
+            }
+            if (total > limit) {
+                e.preventDefault();
+                alert(`❌ Invoice total ₹${total.toFixed(2)} exceeds the limit ₹${limit.toFixed(2)}!`);
+                return false;
+            }
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Invoice...';
+    });
+
+    // Initial calculations
+    document.querySelectorAll('.item-row').forEach(row => calcTotal(row));
+});
+</script>
+{% endblock %}

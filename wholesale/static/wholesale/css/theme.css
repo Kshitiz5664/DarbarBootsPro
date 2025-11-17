@@ -1,0 +1,285 @@
+/* ===========================================
+   DARBARBOOTSPRO – PREMIUM DASHBOARD THEME
+   Version: 2.0
+   Design Language: Neo Glass | Executive UI
+=========================================== */
+
+/* ==============================
+   GLOBAL BASE STYLING
+============================== */
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #0a0a1a, #101024, #1b1b3a, #002b4d);
+  background-attachment: fixed;
+  background-size: 400% 400%;
+  background-repeat: no-repeat;
+  color: #f5f5f5;
+  min-height: 100vh;
+  margin: 0;
+  padding-top: 40px;
+  animation: bgShift 18s ease infinite;
+}
+
+@keyframes bgShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Prevent margin collapse under fixed navbar */
+body > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 10px;
+}
+
+/* ==============================
+   SCROLLBAR
+============================== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 194, 255, 0.6);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 194, 255, 0.9);
+}
+
+/* ==============================
+   GLASS CARD COMPONENTS
+============================== */
+.card,
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  padding: 35px 30px;
+  color: #f5f5f5;
+  animation: fadeIn 0.9s ease-out;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover,
+.dashboard-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.6);
+}
+
+.dashboard-card h5 {
+  font-weight: 600;
+  color: #00c2ff;
+}
+.dashboard-card p {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ==============================
+   NAVBAR
+============================== */
+.navbar {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 18px 40px;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  animation: slideDown 0.8s ease-out;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #00c2ff !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.nav-link {
+  color: #dcdcdc !important;
+  font-weight: 500;
+  transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.nav-link:hover {
+  color: #00c2ff !important;
+  transform: translateY(-2px);
+}
+
+.dropdown-menu {
+  background: rgba(10, 10, 30, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.dropdown-item {
+  color: #dcdcdc !important;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.dropdown-item:hover {
+  background: rgba(0, 194, 255, 0.15);
+  color: #00c2ff !important;
+}
+
+.logout-link {
+  color: #ffb703;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.3s ease, transform 0.2s ease;
+}
+.logout-link:hover {
+  color: #ffd166;
+  transform: scale(1.05);
+}
+
+/* ==============================
+   BUTTONS
+============================== */
+.btn-custom,
+.btn {
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  border: none;
+  letter-spacing: 0.3px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+  opacity: 0.95;
+}
+
+.btn-outline-primary {
+  color: #00c2ff;
+  border: 1px solid #00c2ff;
+}
+.btn-outline-primary:hover {
+  background-color: #00c2ff;
+  color: #fff;
+}
+
+.btn-outline-success {
+  color: #28a745;
+  border: 1px solid #28a745;
+}
+.btn-outline-success:hover {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.btn-outline-info {
+  color: #17a2b8;
+  border: 1px solid #17a2b8;
+}
+.btn-outline-info:hover {
+  background-color: #17a2b8;
+  color: #fff;
+}
+
+.btn-outline-warning {
+  color: #ffc107;
+  border: 1px solid #ffc107;
+}
+.btn-outline-warning:hover {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.btn-outline-dark {
+  color: #aaa;
+  border: 1px solid #aaa;
+}
+.btn-outline-dark:hover {
+  background-color: #222;
+  color: #fff;
+}
+
+/* ==============================
+   TABLES
+============================== */
+.table {
+  color: #eaeaea;
+  font-size: 0.95rem;
+}
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.table-bordered,
+.table th,
+.table td {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.table thead {
+  background: rgba(0, 194, 255, 0.15);
+  color: #00c2ff;
+  font-weight: 600;
+}
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 194, 255, 0.08);
+  transition: background 0.3s ease;
+}
+
+/* ==============================
+   FOOTER
+============================== */
+.footer {
+  margin-top: 60px;
+  padding: 25px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #bbb;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ==============================
+   ANIMATIONS
+============================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==============================
+   RESPONSIVE DESIGN
+============================== */
+@media (max-width: 992px) {
+  .navbar {
+    padding: 14px 20px;
+  }
+  .navbar-brand {
+    font-size: 1.3rem;
+  }
+  .dashboard-card {
+    padding: 25px;
+    border-radius: 16px;
+  }
+  body {
+    padding-top: 85px;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-card {
+    padding: 20px;
+    font-size: 0.9rem;
+  }
+  .btn {
+    font-size: 0.9rem;
+  }
+}

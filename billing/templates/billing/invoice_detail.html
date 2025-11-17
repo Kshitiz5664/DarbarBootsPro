@@ -1,0 +1,138 @@
+{% extends "billing/base.html" %}
+
+{% block page_title %}Invoice {{ object.invoice_number }}{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_update' object.pk %}" class="btn btn-secondary">
+    <i class="bi bi-pencil-square"></i> Edit
+</a>
+
+<a href="#" class="btn btn-danger">
+    <i class="bi bi-trash"></i> Delete
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h4 class="card-title mb-3 text-primary">
+            <i class="bi bi-person-circle"></i> {{ object.party.name }}
+        </h4>
+        <p><strong>Date:</strong> {{ object.date|date:"d M Y" }}</p>
+        <p><strong>Total Amount:</strong> ₹ {{ object.total_amount }}</p>
+        <p><strong>Balance Due:</strong> ₹ {{ object.balance_due }}</p>
+        <p>
+            <strong>Status:</strong>
+            <span class="badge {% if object.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                {{ object.is_paid|yesno:"Paid,Pending" }}
+            </span>
+        </p>
+    </div>
+</div>
+
+<!-- =========================
+     INVOICE ITEMS
+========================= -->
+<h5 class="mt-4"><i class="bi bi-bag-check"></i> Items</h5>
+<div class="table-responsive">
+    <table class="table table-striped align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Rate (₹)</th>
+                <th>GST (₹)</th>
+                <th>Discount (₹)</th>
+                <th>Total (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in object.invoice_items.all %}
+            <tr>
+                <td>{{ item.item.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.gst_amount }}</td>
+                <td>{{ item.discount_amount }}</td>
+                <td>{{ item.total }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted">No items added to this invoice.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- =========================
+     PAYMENTS
+========================= -->
+<h5 class="mt-5"><i class="bi bi-wallet2"></i> Payments</h5>
+<div class="table-responsive">
+    <table class="table table-striped align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Payment ID</th>
+                <th>Date</th>
+                <th>Amount (₹)</th>
+                <th>Mode</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in object.payments.all %}
+            <tr>
+                <td>{{ payment.id }}</td>
+                <td>{{ payment.date|date:"d M Y" }}</td>
+                <td>{{ payment.amount }}</td>
+                <td>{{ payment.get_mode_display }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted">No payments made yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- =========================
+     RETURNS (if applicable)
+========================= -->
+{% if object.returns.exists %}
+<h5 class="mt-5"><i class="bi bi-arrow-counterclockwise"></i> Returns</h5>
+<div class="table-responsive">
+    <table class="table table-striped align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Return ID</th>
+                <th>Date</th>
+                <th>Amount (₹)</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ret in object.returns.all %}
+            <tr>
+                <td>{{ ret.id }}</td>
+                <td>{{ ret.date|date:"d M Y" }}</td>
+                <td>{{ ret.amount }}</td>
+                <td>{{ ret.reason|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+<!-- PDF Auto-Download Script -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("download") === "1") {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = "{% url 'billing:invoice_pdf' invoice.id %}";
+        document.body.appendChild(iframe);
+    }
+});
+</script>
+
+
+{% endblock %}

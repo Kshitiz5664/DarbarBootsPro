@@ -1,0 +1,347 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Edit Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_detail' invoice.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Invoice
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row justify-content-center" style="padding: 80px 0;">  <!-- Added top & bottom body padding -->
+    <div class="col-lg-10">
+        <div class="card form-card">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-pencil-square"></i> Edit Invoice
+                </h3>
+                <p class="form-subtitle">Update invoice #{{ invoice.invoice_number }}</p>
+            </div>
+
+            <form method="post" id="invoiceForm" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Party Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-people"></i> Party Information
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.party.id_for_label }}" class="form-label">
+                                Select Party <span class="text-danger">*</span>
+                            </label>
+                            {{ form.party }}
+                            {% if form.party.errors %}
+                                <div class="invalid-feedback d-block">{{ form.party.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Details Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-file-text"></i> Invoice Details
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.invoice_number.id_for_label }}" class="form-label">
+                                Invoice Number <span class="text-danger">*</span>
+                            </label>
+                            {{ form.invoice_number }}
+                            {% if form.invoice_number.errors %}
+                                <div class="invalid-feedback d-block">{{ form.invoice_number.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">
+                                Date <span class="text-danger">*</span>
+                            </label>
+                            {{ form.date }}
+                            {% if form.date.errors %}
+                                <div class="invalid-feedback d-block">{{ form.date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                {{ form.is_paid }}
+                                <label class="form-check-label" for="{{ form.is_paid.id_for_label }}">
+                                    Mark as Paid
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-cart"></i> Invoice Items
+                    </h5>
+                    
+                    {{ formset.management_form }}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered invoice-items-table" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Item</th>
+                                    <th style="width: 15%;">New Item</th>
+                                    <th style="width: 10%;">Qty</th>
+                                    <th style="width: 12%;">Rate (₹)</th>
+                                    <th style="width: 12%;">GST (₹)</th>
+                                    <th style="width: 12%;">Discount (₹)</th>
+                                    <th style="width: 12%;">Total (₹)</th>
+                                    <th style="width: 2%;">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                {% for form in formset %}
+                                <tr class="item-row">
+                                    <td>{{ form.item }}</td>
+                                    <td>{{ form.new_item_name }}</td>
+                                    <td>{{ form.quantity }}</td>
+                                    <td>{{ form.rate }}</td>
+                                    <td>{{ form.gst_amount }}</td>
+                                    <td>{{ form.discount_amount }}</td>
+                                    <td>{{ form.total }}</td>
+                                    <td class="text-center">{{ form.DELETE }}</td>
+                                    {{ form.id }}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="6" class="text-end"><strong>Grand Total:</strong></td>
+                                    <td><strong id="grandTotal">₹ 0.00</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-circle"></i> Update Invoice
+                    </button>
+                    <a href="{% url 'billing:invoice_detail' invoice.id %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* General card styling */
+.form-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Header */
+.form-header {
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 87, 34, 0.15));
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-title {
+    color: #ff9800;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle {
+    color: #b8b8b8;
+    margin: 8px 0 0 0;
+    font-size: 0.95rem;
+}
+
+/* Sections */
+.form-section {
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.section-title {
+    color: #ff9800;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Inputs */
+.form-label {
+    color: #e0e0e0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-control,
+.form-select {
+    background: rgba(34, 34, 34, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f5f5f5 !important;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+/* Focus state */
+.form-control:focus,
+.form-select:focus {
+    background: rgba(45, 45, 45, 0.95) !important;
+    border-color: #ff9800 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 152, 0, 0.25);
+    color: #fff !important;
+}
+
+/* Force dark dropdown background */
+select,
+select.form-select,
+select option {
+    background-color: #1e1e1e !important;
+    color: #f5f5f5 !important;
+}
+
+/* Switch */
+.form-check-input {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: #ff9800;
+    border-color: #ff9800;
+}
+
+.form-check-label {
+    color: #e0e0e0;
+    cursor: pointer;
+}
+
+/* Table styling */
+.invoice-items-table {
+    margin-top: 15px;
+    background-color: #121212 !important; /* Force dark table */
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.invoice-items-table thead {
+    background: rgba(255, 152, 0, 0.2);
+}
+
+.invoice-items-table th {
+    color: #ff9800;
+    font-weight: 600;
+    border-color: rgba(255, 255, 255, 0.15);
+    padding: 12px 10px;
+}
+
+.invoice-items-table td {
+    background-color: #1e1e1e !important;
+    border-color: rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+    padding: 8px;
+    color: #e0e0e0;
+}
+
+.invoice-items-table input,
+.invoice-items-table select {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    background-color: #2a2a2a !important;
+    color: #f5f5f5 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Footer total */
+.invoice-items-table tfoot {
+    background: rgba(255, 152, 0, 0.1);
+    font-size: 1.1rem;
+}
+
+/* Actions */
+.form-actions {
+    padding: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Validation */
+.text-danger {
+    color: #ff6b6b !important;
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-header { padding: 20px; }
+    .form-section { padding: 20px; }
+    .form-title { font-size: 1.4rem; }
+}
+</style>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function calculateTotal(row) {
+        const qty = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+        const gst = parseFloat(row.querySelector('.gst-input').value) || 0;
+        const discount = parseFloat(row.querySelector('.discount-input').value) || 0;
+        const total = (qty * rate) + gst - discount;
+        row.querySelector('.total-input').value = total.toFixed(2);
+        calculateGrandTotal();
+    }
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        document.querySelectorAll('.total-input').forEach(input => {
+            grandTotal += parseFloat(input.value) || 0;
+        });
+        document.getElementById('grandTotal').textContent = '₹ ' + grandTotal.toFixed(2);
+    }
+    document.querySelectorAll('.item-row').forEach(row => {
+        row.querySelectorAll('.quantity-input, .rate-input, .gst-input, .discount-input').forEach(input => {
+            input.addEventListener('input', () => calculateTotal(row));
+        });
+    });
+    document.querySelectorAll('.item-row').forEach(row => calculateTotal(row));
+});
+</script>
+{% endblock %}

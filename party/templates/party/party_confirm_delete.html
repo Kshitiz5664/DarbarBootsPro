@@ -1,0 +1,20 @@
+{% extends 'wholesale/base.html' %}
+{% block content %}
+
+<div class="container py-5">
+  <div class="card border-danger shadow-sm mx-auto" style="max-width: 600px;">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0">Confirm Deletion</h5>
+    </div>
+    <div class="card-body text-center">
+      <p class="fs-5 mb-4">Are you sure you want to delete <strong>{{ object.name }}</strong>?</p>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger px-4 me-2">Yes, Delete</button>
+        <a href="{% url 'party:party_list' %}" class="btn btn-secondary px-4">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

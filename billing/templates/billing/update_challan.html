@@ -1,0 +1,141 @@
+{% extends "billing/base.html" %}
+
+{% block page_title %}Update Challan #{{ challan.challan_number }}{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:challan_detail' challan.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="card shadow-sm border-0 rounded-4 p-4">
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <h5 class="mb-3 fw-bold">Challan Details</h5>
+
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <small class="text-danger">{{ field.errors|striptags }}</small>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <hr class="my-4">
+
+        <h5 class="mb-3 fw-bold d-flex align-items-center gap-2">
+            <span>Challan Items</span>
+            <button type="button" class="btn btn-outline-primary btn-sm ms-auto" id="add-row">
+                <i class="bi bi-plus-circle"></i> Add Item
+            </button>
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle" id="items-table">
+                {{ formset.management_form }}
+
+                <thead class="table-light">
+                    <tr>
+                        {% for field in formset.empty_form.visible_fields %}
+                        <th class="text-nowrap">{{ field.label }}</th>
+                        {% endfor %}
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="formset-body">
+                {% for form_item in formset %}
+                <tr class="formset-row">
+                    {% for field in form_item.visible_fields %}
+                    <td>{{ field }}</td>
+                    {% endfor %}
+                    <td class="text-center">
+                        <!-- Bigger, clearly labeled remove button -->
+                        <button type="button" class="btn btn-danger btn-sm remove-row">
+                            <i class="bi bi-trash"></i> Remove Item
+                        </button>
+                        <!-- Existing DELETE checkbox (shown only for JS marking) -->
+                        {% if form_item.DELETE %}{{ form_item.DELETE }}{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4">
+                <i class="bi bi-check-circle"></i> Save Changes
+            </button>
+            <a href="{% url 'billing:challan_list' %}" class="btn btn-outline-secondary px-4">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Hidden template for new rows: render the empty_form server-side with __prefix__ placeholders -->
+<template id="empty-form-row">
+    <tr class="formset-row">
+        {% for field in formset.empty_form.visible_fields %}
+        <td>{{ field }}</td>
+        {% endfor %}
+        <td class="text-center">
+            <button type="button" class="btn btn-danger btn-sm remove-row">
+                <i class="bi bi-trash"></i> Remove Item
+            </button>
+            {% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE }}{% endif %}
+        </td>
+    </tr>
+</template>
+
+<script>
+(function() {
+    const formsetBody = document.getElementById("formset-body");
+    const totalForms = document.getElementById("id_{{ formset.prefix }}-TOTAL_FORMS"); // usually id_form-TOTAL_FORMS
+    const rowTemplate = document.getElementById("empty-form-row");
+
+    // Adds a new item row using the empty form template
+    document.getElementById("add-row").addEventListener("click", function () {
+        const index = parseInt(totalForms.value, 10);
+        // Clone template HTML and replace ALL __prefix__ tokens with the next index
+        const html = rowTemplate.innerHTML.replace(/__prefix__/g, index);
+        const tmp = document.createElement("tbody");
+        tmp.innerHTML = html.trim();
+
+        // Append the new row
+        const newRow = tmp.firstElementChild;
+        formsetBody.appendChild(newRow);
+
+        // Increment management form count
+        totalForms.value = index + 1;
+    });
+
+    // Marks a row for deletion and hides it (works for both existing and newly added rows)
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest(".remove-row");
+        if (!btn) return;
+
+        const row = btn.closest("tr");
+        if (!row) return;
+
+        // Find the DELETE checkbox in this row (present for both existing & new rows)
+        const deleteCheckbox = row.querySelector("input[type='checkbox'][name$='-DELETE']");
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true; // mark for deletion
+        } else {
+            // If no DELETE checkbox (rare), disable inputs so they won't be validated/submitted
+            row.querySelectorAll("input, select, textarea").forEach(el => { el.disabled = true; });
+        }
+
+        // Hide the row visually
+        row.style.display = "none";
+    });
+})();
+</script>
+{% endblock %}

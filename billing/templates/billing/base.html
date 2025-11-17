@@ -1,0 +1,18 @@
+{% extends "wholesale/base.html" %}   {# Uses wholesale base.html for navbar/theme #}
+
+{% block title %}Billing{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>{% block page_title %}Billing{% endblock %}</h2>
+        </div>
+        <div class="col text-end">
+            {% block action_button %}{% endblock %}
+        </div>
+    </div>
+
+    {% block billing_content %}{% endblock %}
+</div>
+{% endblock %}

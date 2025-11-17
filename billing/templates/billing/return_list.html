@@ -1,0 +1,507 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Return List{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:return_create' %}" class="btn btn-gradient-primary">
+    <i class="bi bi-plus-circle"></i> Create Return
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card list-card">
+            <!-- Card Header -->
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-arrow-return-left"></i> Returns
+                    </h4>
+                    <div class="card-stats">
+                        <span class="badge bg-danger-soft">{{ returns.count }} Total</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table custom-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 12%;">Date</th>
+                                <th style="width: 20%;">Party</th>
+                                <th style="width: 15%;">Invoice</th>
+                                <th style="width: 12%;" class="text-end">Amount</th>
+                                <th style="width: 25%;">Reason</th>
+                                <th style="width: 11%;" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for return in returns %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <div class="date-cell">
+                                        <i class="bi bi-calendar3"></i>
+                                        {{ return.return_date|date:"d M, Y" }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="party-cell">
+                                        <i class="bi bi-building"></i>
+                                        <span>{{ return.party.name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{% url 'billing:invoice_detail' return.invoice.id %}" 
+                                       class="invoice-link">
+                                        <i class="bi bi-receipt"></i>
+                                        {{ return.invoice.invoice_number }}
+                                    </a>
+                                </td>
+                                <td class="text-end">
+                                    <span class="amount-badge amount-danger">
+                                        ₹{{ return.amount|floatformat:2 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="reason-cell">
+                                        {% if return.reason %}
+                                            <span class="reason-text" title="{{ return.reason }}">
+                                                {{ return.reason|truncatechars:50 }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="action-buttons">
+                                        <!-- Correct URL name: use 'billing:return_pdf' -->
+                                        <a href="{% url 'billing:return_pdf' return.id %}"
+
+                                           class="btn btn-action btn-danger-soft" 
+                                           target="_blank" 
+                                           rel="noopener noreferrer"
+                                           title="Download Receipt">
+                                            <i class="bi bi-file-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-inbox"></i>
+                                    </div>
+                                    <p class="empty-text">No returns found</p>
+                                    <a href="{% url 'billing:return_create' %}" class="btn btn-sm btn-gradient-primary mt-2">
+                                        <i class="bi bi-plus-circle"></i> Create First Return
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Auto-download trigger: use the correct URL name and escape the JS value #}
+{% if download_return %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const returnId = "{{ download_return|default:'' }}";
+
+    // If returnId exists, trigger auto-download
+    if (returnId !== "") {
+
+        const pdfUrl = "{{ request.scheme }}://{{ request.get_host }}{% url 'billing:return_pdf' return_id=999999 %}"
+    .replace("999999", returnId);
+
+        // Open PDF
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+
+        // Clear the session key to avoid repeated downloads
+        fetch("{% url 'billing:clear_pdf_session' %}", {
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" }
+        });
+    }
+
+});
+</script>
+
+{% endif %}
+
+
+
+
+<style>
+    /* --- Global Styles --- */
+    body {
+        background: linear-gradient(160deg, #0a0a0a, #111, #050505);
+        color: #e0e0e0;
+        padding-bottom: 80px;
+    }
+    
+    /* --- Card Styling --- */
+    .list-card {
+        background: rgba(10, 10, 10, 0.95);
+        backdrop-filter: blur(18px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        animation: fadeIn 0.6s ease-out;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    }
+    
+    /* --- Card Header --- */
+    .card-header {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.25), rgba(139, 0, 0, 0.2));
+        padding: 30px 40px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .card-title {
+        color: #dc3545;
+        font-size: 1.6rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .card-stats .badge {
+        font-size: 0.95rem;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    .bg-danger-soft {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.4);
+    }
+    
+    /* --- Card Body --- */
+    .card-body {
+        padding: 0;
+    }
+    
+    /* --- Table Styling --- */
+    .table-responsive {
+        margin: 0;
+    }
+    
+    .custom-table {
+        margin-bottom: 0;
+        background: rgba(15, 15, 15, 0.8);
+    }
+    
+    .custom-table thead {
+        background: rgba(220, 53, 69, 0.2);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .custom-table th {
+        color: #dc3545;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(220, 53, 69, 0.4);
+        padding: 18px 16px;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    
+    .custom-table td {
+        padding: 16px;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: #d0d0d0;
+    }
+    
+    .custom-table tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .custom-table tbody tr:hover {
+        background: rgba(220, 53, 69, 0.08);
+        transform: scale(1.01);
+    }
+    
+    /* --- Cell Styles --- */
+    .date-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #b0b0b0;
+        font-size: 0.95rem;
+    }
+    
+    .date-cell i {
+        color: #dc3545;
+        font-size: 1rem;
+    }
+    
+    .party-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .party-cell i {
+        color: #dc3545;
+        font-size: 1.1rem;
+    }
+    
+    .party-cell span {
+        color: #f0f0f0;
+        font-weight: 500;
+    }
+    
+    .invoice-link {
+        color: #17a2b8;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+    
+    .invoice-link:hover {
+        color: #fff;
+        text-shadow: 0 0 10px rgba(23, 162, 184, 0.8);
+    }
+    
+    .invoice-link i {
+        font-size: 1rem;
+    }
+    
+    /* --- Amount Badge --- */
+    .amount-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    
+    .amount-danger {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    /* --- Reason Cell --- */
+    .reason-cell {
+        max-width: 300px;
+    }
+    
+    .reason-text {
+        color: #b0b0b0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        display: block;
+    }
+    
+    /* --- Action Buttons --- */
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+    
+    .btn-action {
+        padding: 8px 12px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-danger-soft {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    .btn-danger-soft:hover {
+        background: rgba(220, 53, 69, 0.3);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+    }
+    
+    .btn-action i {
+        font-size: 1.1rem;
+    }
+    
+    /* --- Empty State --- */
+    .empty-state {
+        padding: 60px 20px !important;
+        text-align: center;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: rgba(220, 53, 69, 0.3);
+        margin-bottom: 20px;
+    }
+    
+    .empty-text {
+        color: #888;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+    }
+    
+    /* --- Gradient Button --- */
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #dc3545, #8b0000);
+        border: none;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient-primary:hover {
+        background: linear-gradient(135deg, #8b0000, #dc3545);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4);
+        color: #fff;
+    }
+    
+    /* --- Animation --- */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* --- Responsive Design --- */
+    @media (max-width: 1200px) {
+        .custom-table th,
+        .custom-table td {
+            padding: 12px 10px;
+            font-size: 0.9rem;
+        }
+        
+        .reason-cell {
+            max-width: 200px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .card-header {
+            padding: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+        }
+        
+        .custom-table {
+            font-size: 0.85rem;
+        }
+        
+        .custom-table th,
+        .custom-table td {
+            padding: 10px 8px;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .btn-action {
+            padding: 6px 10px;
+        }
+        
+        .reason-cell {
+            max-width: 150px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        /* Make table scrollable on mobile */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        .custom-table {
+            min-width: 800px;
+        }
+    }
+    
+    /* --- Print Styles --- */
+    @media print {
+        body {
+            background: white;
+            color: black;
+        }
+        
+        .list-card {
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .btn, .action-buttons, #action_button {
+            display: none !important;
+        }
+        
+        .card-header {
+            background: white;
+            color: black;
+        }
+        
+        .card-title {
+            color: #000;
+        }
+        
+        .custom-table {
+            background: white;
+        }
+        
+        .custom-table thead {
+            background: #f8f9fa;
+        }
+        
+        .custom-table th {
+            color: #000;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .custom-table td {
+            border-bottom: 1px solid #ddd;
+            color: #000;
+        }
+    }
+</style>
+
+{% endblock %}

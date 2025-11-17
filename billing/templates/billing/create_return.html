@@ -1,0 +1,395 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Create Return{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Invoices
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 mb-5"><!-- Added bottom margin -->
+        <div class="card form-card shadow-lg">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-arrow-return-left"></i> Record Return
+                </h3>
+                <p class="form-subtitle">Create a return entry for an invoice</p>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Return Details Section -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-info-circle"></i> Return Information
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.invoice.id_for_label }}" class="form-label">
+                                Invoice <span class="text-danger">*</span>
+                            </label>
+                            {{ form.invoice }}
+                            {% if form.invoice.errors %}
+                                <div class="invalid-feedback d-block">{{ form.invoice.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.party.id_for_label }}" class="form-label">
+                                Party <span class="text-danger">*</span>
+                            </label>
+                            {{ form.party }}
+                            {% if form.party.errors %}
+                                <div class="invalid-feedback d-block">{{ form.party.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.return_date.id_for_label }}" class="form-label">
+                                Return Date <span class="text-danger">*</span>
+                            </label>
+                            {{ form.return_date }}
+                            {% if form.return_date.errors %}
+                                <div class="invalid-feedback d-block">{{ form.return_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.amount.id_for_label }}" class="form-label">
+                                Return Amount (₹) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                {{ form.amount }}
+                            </div>
+                            {% if form.amount.errors %}
+                                <div class="invalid-feedback d-block">{{ form.amount.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label">
+                                Reason for Return
+                            </label>
+                            {{ form.reason }}
+                            {% if form.reason.errors %}
+                                <div class="invalid-feedback d-block">{{ form.reason.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="{{ form.image.id_for_label }}" class="form-label">
+                                Attach Image (Optional)
+                            </label>
+                            <div class="upload-area" id="uploadArea">
+                                <i class="bi bi-cloud-upload upload-icon"></i>
+                                <p class="upload-text">Click or drag image here</p>
+                                {{ form.image }}
+                            </div>
+                            <div id="imagePreview" class="image-preview"></div>
+                            {% if form.image.errors %}
+                                <div class="invalid-feedback d-block">{{ form.image.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Receipt Options -->
+<div class="col-md-12">
+    <div class="receipt-options-card">
+        <h6 class="options-title">
+            <i class="bi bi-gear"></i> Receipt Options
+        </h6>
+        <div class="row g-3">
+            <div class="col-md-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="download_receipt" id="download_receipt">
+                    <label class="form-check-label" for="download_receipt">
+                        <i class="bi bi-download text-warning"></i> Download PDF Receipt
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-warning btn-lg">
+                        <i class="bi bi-check-circle"></i> Record Return
+                    </button>
+                    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background: linear-gradient(145deg, #121212, #1b1b1b, #101010);
+}
+
+/* --- Card and Layout --- */
+.form-card {
+    background: rgba(18, 18, 18, 0.9);
+    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* --- Header --- */
+.form-header {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.1));
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-title {
+    color: #ffc107;
+    font-size: 1.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.form-subtitle {
+    color: #b8b8b8;
+    margin: 8px 0 0;
+    font-size: 0.95rem;
+}
+
+/* --- Section --- */
+.form-section {
+    padding: 30px;
+}
+
+.section-title {
+    color: #ffc107;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* --- Inputs --- */
+.form-label {
+    color: #e0e0e0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-control,
+.form-select,
+textarea.form-control {
+    background: rgba(40, 40, 40, 0.95); /* Darker background for input fields */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f5f5f5;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+    background: rgba(50, 50, 50, 1);
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    color: #fff;
+}
+
+/* --- Dropdown Menu (Dark Theme) --- */
+select.form-select option {
+    background-color: #1b1b1b; /* Dark dropdown background */
+    color: #f5f5f5;
+}
+
+/* --- Input Group --- */
+.input-group-text {
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffc107;
+    font-weight: 600;
+    border-radius: 10px 0 0 10px;
+}
+
+.input-group .form-control {
+    border-radius: 0 10px 10px 0;
+}
+
+/* --- Upload Area --- */
+.upload-area {
+    border: 2px dashed rgba(255, 193, 7, 0.4);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    background: rgba(255, 193, 7, 0.05);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.upload-area:hover {
+    border-color: rgba(255, 193, 7, 0.7);
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.upload-area input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: #ffc107;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.upload-text {
+    color: #b8b8b8;
+    margin: 0;
+}
+
+/* --- Image Preview --- */
+.image-preview {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+/* --- Form Actions --- */
+.form-actions {
+    padding: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* --- Validation & Feedback --- */
+.text-danger {
+    color: #ff6b6b !important;
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+/* --- Animation --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .form-header {
+        padding: 20px;
+    }
+    
+    .form-section {
+        padding: 20px;
+    }
+    
+    .form-title {
+        font-size: 1.4rem;
+    }
+}
+/* Receipt Options Card */
+.receipt-options-card {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.options-title {
+    color: #ffc107;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-check-input {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-check-input:checked {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+
+.form-check-label {
+    color: #e0e0e0;
+    cursor: pointer;
+    margin-left: 10px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    const dateInput = document.getElementById('{{ form.return_date.id_for_label }}');
+    if (!dateInput.value) {
+        dateInput.valueAsDate = new Date();
+    }
+    
+    // Image preview
+    const fileInput = document.getElementById('{{ form.image.id_for_label }}');
+    const previewDiv = document.getElementById('imagePreview');
+    
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewDiv.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+</script>
+{% endblock %}

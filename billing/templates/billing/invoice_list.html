@@ -1,0 +1,178 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}All Invoices{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'billing:invoice_create' %}" class="btn btn-success shadow-sm">
+    <i class="bi bi-plus-circle me-1"></i> New Invoice
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<section class="invoice-bg py-4">
+<div class="card shadow-lg border-0 rounded-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Invoice No.</th>
+                        <th>Party</th>
+                        <th>Date</th>
+                        <th>Total (₹)</th>
+                        <th>Balance (₹)</th>
+                        <th>Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in object_list %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td><strong>{{ invoice.invoice_number }}</strong></td>
+                        <td>{{ invoice.party.name }}</td>
+                        <td>{{ invoice.date|date:"d M Y" }}</td>
+                        <td>{{ invoice.total_amount }}</td>
+                        <td>{{ invoice.balance_due }}</td>
+                        <td>
+                            {% if invoice.is_paid %}
+                                <span class="badge bg-success">Paid</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+
+                            <!-- View Invoice -->
+                            <a href="{% url 'billing:invoice_detail' invoice.pk %}" 
+                               class="action-btn view-btn me-2" 
+                               title="View Invoice">
+                                <i class="bi bi-eye"></i>
+                            </a>
+
+                            <!-- Edit Invoice -->
+                            <a href="{% url 'billing:invoice_update' invoice.pk %}" 
+                               class="action-btn edit-btn me-2" 
+                               title="Edit Invoice">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+
+                            <!-- Add Payment to This Invoice -->
+                            <a href="{% url 'billing:payment_create_for_invoice' invoice.pk %}"
+                               class="action-btn pay-btn me-2"
+                               title="Add Payment for this Invoice">
+                                <i class="bi bi-cash-coin"></i>
+                            </a>
+
+                            <!-- Delete Invoice -->
+                            <a href="#" 
+                               class="action-btn delete-btn" 
+                               title="Delete Invoice"
+                               onclick="return confirm('Are you sure you want to delete this invoice?');">
+                                <i class="bi bi-trash"></i>
+                            </a>
+
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-3">
+                            <i class="bi bi-inbox"></i> No invoices found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</section>
+
+<style>
+.invoice-bg {
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
+    min-height: 100vh;
+}
+.card-body {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+    border-radius: 16px;
+}
+.table thead th {
+    color: #00c2ff;
+    letter-spacing: 0.4px;
+}
+.table-hover tbody tr:hover {
+    background: rgba(0,194,255,0.08);
+}
+.badge {
+    font-size: 0.85rem;
+}
+.btn-sm i {
+    font-size: 1rem;
+    vertical-align: middle;
+}
+
+/* === Enhanced Circular Action Buttons === */
+.action-btn {
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+}
+
+/* View */
+.view-btn {
+    border: 2px solid #007bff;
+    background: transparent;
+    color: #007bff;
+}
+.view-btn:hover {
+    background: #007bff;
+    color: white;
+}
+
+/* Edit */
+.edit-btn {
+    border: 2px solid #6c757d;
+    background: transparent;
+    color: #6c757d;
+}
+.edit-btn:hover {
+    background: #6c757d;
+    color: white;
+}
+
+/* Add Payment */
+.pay-btn {
+    border: 2px solid #198754;
+    background: transparent;
+    color: #198754;
+}
+.pay-btn:hover {
+    background: #198754;
+    color: white;
+}
+
+/* Delete */
+.delete-btn {
+    border: 2px solid #dc3545;
+    background: transparent;
+    color: #dc3545;
+}
+.delete-btn:hover {
+    background: #dc3545;
+    color: white;
+}
+</style>
+
+<script>
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}
