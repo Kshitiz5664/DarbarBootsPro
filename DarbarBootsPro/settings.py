@@ -6,6 +6,8 @@ Production-optimized for Render + Supabase PostgreSQL deployment.
 from pathlib import Path
 import os
 import dj_database_url
+from core.views_migrate import run_migrations
+
 
 # ------------------------------------------------------------------------------------
 # BASE CONFIG

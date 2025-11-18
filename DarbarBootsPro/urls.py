@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings                # ✅ Added this line
 from django.conf.urls.static import static      # ✅ And this one
+from core.views_migrate import run_migrations
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -12,6 +13,8 @@ urlpatterns = [
     path('billing/', include('billing.urls')),
     path('wholesale/', include('wholesale.urls')),
     path('retail/', include('retailapp.urls')),  
+    path('run-migrations/', run_migrations),
+
 ]
 
 if settings.DEBUG:
