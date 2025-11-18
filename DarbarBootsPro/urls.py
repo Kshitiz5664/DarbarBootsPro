@@ -13,8 +13,6 @@ urlpatterns = [
     path('billing/', include('billing.urls')),
     path('wholesale/', include('wholesale.urls')),
     path('retail/', include('retailapp.urls')),  
-    
-    
 
 ]
 
