@@ -14,7 +14,7 @@ urlpatterns = [
     path('wholesale/', include('wholesale.urls')),
     path('retail/', include('retailapp.urls')),  
     path('run-migrations/', run_migrations),
-    path('run-migrations/', run_migrations),
+    
 
 ]
 
