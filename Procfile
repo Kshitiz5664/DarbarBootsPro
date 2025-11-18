@@ -1,1 +1,1 @@
-gunicorn DarbarBootsPro.wsgi:application --timeout 120
+web: gunicorn DarbarBootsPro.wsgi:application --bind 0.0.0.0:$PORT
