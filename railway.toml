@@ -1,10 +1,10 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "pip install -r requirements.txt"
+buildCommand = "pip install -r requirements.txt && python manage.py collectstatic --noinput"
 
 [deploy]
 runtime = "V2"
 numReplicas = 1
 startCommand = "gunicorn DarbarBootsPro.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
-postDeployCommand = "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+postDeployCommand = "python manage.py migrate --noinput"
 sleepApplication = false
