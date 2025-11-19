@@ -1,6 +1,5 @@
 from django import forms
 from .models import Item
-import imghdr
 
 
 class ItemForm(forms.ModelForm):
@@ -57,39 +56,37 @@ class ItemForm(forms.ModelForm):
         }
 
     def clean(self):
-        """Cross-field validation for business logic."""
         cleaned_data = super().clean()
         price_retail = cleaned_data.get('price_retail')
         price_wholesale = cleaned_data.get('price_wholesale')
         discount = cleaned_data.get('discount')
         gst = cleaned_data.get('gst_percent')
 
-        # Retail vs Wholesale sanity check
         if price_retail and price_wholesale and price_wholesale > price_retail:
             self.add_error('price_wholesale', 'Wholesale price cannot exceed retail price.')
 
-        # Discount range check
         if discount and (discount < 0 or discount > 100):
             self.add_error('discount', 'Discount must be between 0% and 100%.')
 
-        # GST range validation
         if gst and (gst < 0 or gst > 50):
             self.add_error('gst_percent', 'GST must be between 0% and 50%.')
 
         return cleaned_data
 
     def clean_image(self):
-        """Strict validation for uploaded images."""
         image = self.cleaned_data.get('image')
         if image:
             valid_mime_types = ['image/jpeg', 'image/png', 'image/gif']
             if image.content_type not in valid_mime_types:
                 raise forms.ValidationError('Only JPEG, PNG, and GIF images are allowed.')
 
-            if image.size > 5 * 1024 * 1024:  # 5MB limit
+            if image.size > 5 * 1024 * 1024:  # 5MB
                 raise forms.ValidationError('Image file size cannot exceed 5MB.')
 
-            # Additional internal format validation
-            if imghdr.what(image) not in ['jpeg', 'png', 'gif']:
-                raise forms.ValidationError('Uploaded file is not a valid image.')
+            # Extension-based safety check
+            valid_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+            ext = image.name.lower().rsplit('.', 1)[-1]
+            if f".{ext}" not in valid_extensions:
+                raise forms.ValidationError('Invalid image file extension.')
+
         return image
