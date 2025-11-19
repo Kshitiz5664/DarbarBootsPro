@@ -5,6 +5,5 @@ buildCommand = "pip install -r requirements.txt && python manage.py collectstati
 [deploy]
 runtime = "V2"
 numReplicas = 1
-startCommand = "gunicorn DarbarBootsPro.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
-postDeployCommand = "python manage.py migrate --noinput"
+startCommand = "python manage.py migrate --noinput && gunicorn DarbarBootsPro.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
 sleepApplication = false
