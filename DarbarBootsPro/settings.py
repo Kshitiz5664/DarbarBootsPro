@@ -17,6 +17,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Your apps
     'UserAuth',
     'core',
     'items',
@@ -28,7 +30,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+
+    # Enable WhiteNoise
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -55,24 +60,45 @@ TEMPLATES = [
     },
 ]
 
-# ✔ Correct for Railway
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=False,
-    )
-}
+# ------------------------------------------------------------
+# ✅ DATABASE CONFIG — Railway (PostgreSQL) + LOCAL (SQLite)
+# ------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if DATABASE_URL:
+    # Production (Railway cloud PostgreSQL)
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=False
+        )
+    }
+else:
+    # Local development (SQLite)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+# ------------------------------------------------------------
+# STATIC & MEDIA FILES
+# ------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# ------------------------------------------------------------
+# SECURITY
+# ------------------------------------------------------------
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = False
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
