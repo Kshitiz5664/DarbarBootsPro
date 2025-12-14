@@ -4,13 +4,17 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.views import View
-from django.views.generic import TemplateView, ListView, FormView
+from django.views.generic import ListView
 from django.urls import reverse_lazy
 from items.models import Item
 
 
 # ✅ Homepage
 class IndexView(ListView):
+    """
+    Display homepage with active inventory items.
+    Featured items are displayed first, then sorted alphabetically.
+    """
     model = Item
     template_name = "UserAuth/index.html"
     context_object_name = "items"
@@ -25,6 +29,7 @@ class IndexView(ListView):
 
 # ✅ Login View
 class LoginView(View):
+    """Handle user authentication and login."""
     template_name = "UserAuth/login.html"
 
     def get(self, request):
@@ -46,6 +51,7 @@ class LoginView(View):
 
 # ✅ Logout View
 class LogoutView(LoginRequiredMixin, View):
+    """Handle user logout with login requirement."""
     login_url = reverse_lazy('UserAuth:login')
 
     def get(self, request):
@@ -56,6 +62,7 @@ class LogoutView(LoginRequiredMixin, View):
 
 # ✅ Registration View
 class RegisterView(View):
+    """Handle new user registration."""
     template_name = "UserAuth/register.html"
 
     def get(self, request):

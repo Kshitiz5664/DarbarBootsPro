@@ -1,70 +1,514 @@
 {% extends "wholesale/base.html" %}
 {% block title %}Dashboard{% endblock %}
-
 {% block content %}
-<h2 class="mb-4 fw-bold">Dashboard Overview</h2>
+<style>
+  /* ==================== VARIABLES ==================== */
+  :root {
+    --border-radius-sm: 8px;  
+    --border-radius-md: 12px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --transition-default: all 0.3s ease;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 
-<!-- KPI Metrics -->
-<div class="row">
-  {% for key, value in kpi.items %}
-  <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-    <div class="dashboard-card text-center shadow-sm p-3 bg-light rounded">
-      <h5 class="text-secondary">{{ key|cut:"_"|capfirst }}</h5>
-      <p class="h3 fw-bold text-dark">{{ value }}</p>
+  /* ==================== LAYOUT ==================== */
+  .dashboard-container {
+    padding: var(--spacing-md);
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ==================== PAGE HEADER ==================== */
+  .page-header {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .page-title {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: 0;
+  }
+
+  /* ==================== QUICK NAVIGATION ==================== */
+  .quick-nav-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .quick-nav-title {
+    color: white;
+    font-size: clamp(1.1rem, 3vw, 1.3rem);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .quick-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--spacing-sm);
+  }
+
+  /* Desktop: Better grid for quick nav */
+  @media (min-width: 1024px) {
+    .quick-nav-grid {
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--spacing-md);
+    }
+  }
+
+  .quick-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
+    background: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-default);
+    text-decoration: none;
+    min-height: 90px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .quick-nav-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s;
+  }
+
+  .quick-nav-btn:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .quick-nav-btn i {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    position: relative;
+    z-index: 1;
+  }
+
+  .quick-nav-btn span {
+    font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+  }
+
+  .quick-nav-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Desktop enhancements */
+  @media (min-width: 1024px) {
+    .quick-nav-btn {
+      min-height: 110px;
+      padding: var(--spacing-lg);
+    }
+
+    .quick-nav-btn i {
+      font-size: 2.2rem;
+    }
+
+    .quick-nav-btn span {
+      font-size: 1rem;
+    }
+  }
+
+  /* ==================== KPI GRID ==================== */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  /* Desktop: Force max 4 columns */
+  @media (min-width: 1024px) {
+    .kpi-grid {
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-lg);
+    }
+  }
+
+  /* Tablet: 3 columns */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .kpi-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .kpi-card {
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-default);
+    border-left: 4px solid #667eea;
+    background: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    border-radius: 0 0 0 100%;
+    transition: var(--transition-default);
+  }
+
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .kpi-card:hover::before {
+    width: 100px;
+    height: 100px;
+  }
+
+  .kpi-label {
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .kpi-value {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 700;
+    margin: 0;
+    word-break: break-word;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Desktop enhancements for KPI cards */
+  @media (min-width: 1024px) {
+    .kpi-card {
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .kpi-label {
+      font-size: 0.95rem;
+    }
+
+    .kpi-value {
+      font-size: 2.25rem;
+      margin-top: var(--spacing-xs);
+    }
+  }
+
+  /* ==================== PENDING SECTION ==================== */
+  .pending-section {
+    background: white;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .section-title {
+    font-size: clamp(1.1rem, 3vw, 1.4rem);
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+  }
+
+  .data-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .data-table th {
+    font-weight: 600;
+    padding: var(--spacing-md);
+    white-space: nowrap;
+    border-bottom: none;
+    color: white;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+  }
+
+  .data-table td {
+    padding: var(--spacing-md);
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .data-table tbody tr {
+    transition: var(--transition-default);
+  }
+
+  .data-table tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+  }
+
+  /* Desktop table enhancements */
+  @media (min-width: 1024px) {
+    .data-table th {
+      padding: var(--spacing-lg);
+      font-size: 1rem;
+    }
+
+    .data-table td {
+      padding: var(--spacing-lg);
+      font-size: 1rem;
+    }
+
+    .data-table tbody tr:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-md);
+    color: #6c757d;
+  }
+
+  /* ==================== MOBILE OPTIMIZATIONS ==================== */
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: var(--spacing-sm);
+    }
+
+    .quick-nav-section,
+    .pending-section {
+      padding: var(--spacing-md);
+    }
+
+    .quick-nav-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .kpi-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--spacing-sm);
+    }
+
+    .kpi-card {
+      padding: var(--spacing-md);
+    }
+
+    .data-table {
+      font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: var(--spacing-sm);
+    }
+
+    /* Make table scrollable on mobile */
+    .table-responsive {
+      margin: 0 calc(-1 * var(--spacing-md));
+      padding: 0 var(--spacing-md);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .quick-nav-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-xs);
+    }
+
+    .quick-nav-btn {
+      min-height: 80px;
+      padding: var(--spacing-sm);
+    }
+
+    .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* Stack table on very small screens */
+    .data-table thead {
+      display: none;
+    }
+
+    .data-table tr {
+      display: block;
+      margin-bottom: var(--spacing-md);
+      border: 1px solid #dee2e6;
+      border-radius: var(--border-radius-sm);
+      overflow: hidden;
+    }
+
+    .data-table td {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-sm);
+      border-bottom: 1px solid #f0f0f0;
+      text-align: right;
+    }
+
+    .data-table td:last-child {
+      border-bottom: none;
+    }
+
+    .data-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      text-align: left;
+      margin-right: var(--spacing-sm);
+    }
+
+    .empty-state {
+      display: table-cell !important;
+    }
+  }
+
+  /* ==================== UTILITY CLASSES ==================== */
+  .fw-semibold { font-weight: 600; }
+  .fw-bold { font-weight: 700; }
+  .text-success { color: #198754; }
+  .text-danger { color: #dc3545; }
+  .text-secondary { color: #6c757d; }
+  .text-dark { color: #212529; }
+</style>
+
+<div class="dashboard-container">
+  <!-- Quick Navigation -->
+  <section class="quick-nav-section">
+    <h3 class="quick-nav-title">
+      <i class="bi bi-lightning-fill"></i> Quick Navigation
+    </h3>
+    <div class="quick-nav-grid">
+      <a href="{% url 'party:party_list' %}" class="btn btn-outline-primary quick-nav-btn">
+        <i class="bi bi-people"></i><span>Parties</span>
+      </a>
+      <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-success quick-nav-btn">
+        <i class="bi bi-receipt"></i><span>Invoices</span>
+      </a>
+      <a href="{% url 'billing:payment_list' %}" class="btn btn-outline-info quick-nav-btn">
+        <i class="bi bi-cash-stack"></i><span>Payments</span>
+      </a>
+      <a href="{% url 'billing:return_create' %}" class="btn btn-outline-warning quick-nav-btn">
+        <i class="bi bi-arrow-return-left"></i><span>Returns</span>
+      </a>
+      <a href="{% url 'billing:challan_create' %}" class="btn btn-outline-secondary quick-nav-btn">
+        <i class="bi bi-clipboard-plus"></i><span>Challan</span>
+      </a>
+      <a href="{% url 'billing:manage_balance' %}" class="btn btn-outline-dark quick-nav-btn">
+        <i class="bi bi-calculator"></i><span>Balances</span>
+      </a>
     </div>
-  </div>
-  {% endfor %}
-</div>
+  </section>
 
-<!-- Quick Navigation Section -->
-<h3 class="mt-5 fw-semibold">Quick Navigation</h3>
-<div class="row text-center mt-3">
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'party:party_list' %}" class="btn btn-outline-primary w-100">Manage Parties</a>
+  <!-- Header -->
+  <div class="page-header">
+    <h2 class="page-title">
+      <i class="bi bi-speedometer2"></i> Dashboard Overview
+    </h2>
   </div>
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-success w-100">Invoices</a>
-  </div>
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'billing:payment_list' %}" class="btn btn-outline-info w-100">Payments</a>
-  </div>
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'billing:return_create' %}" class="btn btn-outline-warning w-100">Create Return</a>
-  </div>
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'billing:challan_create' %}" class="btn btn-outline-secondary w-100">Create Challan</a>
-  </div>
-  <div class="col-md-2 col-6 mb-3">
-    <a href="{% url 'billing:manage_balance' %}" class="btn btn-outline-dark w-100">Manage Balances</a>
-  </div>
-</div>
 
-<!-- Top Pending Parties -->
-<h3 class="mt-5 fw-semibold">Top Pending Parties</h3>
-<div class="table-responsive mt-3">
-  <table class="table table-striped table-bordered align-middle">
-    <thead class="table-dark">
-      <tr>
-        <th>Party</th>
-        <th>Total Invoiced</th>
-        <th>Total Paid</th>
-        <th>Pending</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for party in top_pending_parties %}
-      <tr>
-        <td>{{ party.name }}</td>
-        <td>{{ party.total_invoiced }}</td>
-        <td>{{ party.total_paid }}</td>
-        <td class="text-danger fw-bold">{{ party.pending }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="4" class="text-center text-muted">No pending parties.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- KPI Metrics -->
+  <div class="kpi-grid">
+    {% for key, value in kpi.items %}
+    <div class="kpi-card bg-light">
+      <h5 class="kpi-label text-secondary">
+        {{ key|cut:"_"|title }}
+      </h5>
+      <p class="kpi-value text-dark">
+        {% if "amount" in key or "total" in key or "balance" in key or "pending" in key %}
+          ₹{{ value|floatformat:2 }}
+        {% else %}
+          {{ value }}
+        {% endif %}
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pending Parties -->
+  <section class="pending-section">
+    <h3 class="section-title">
+      <i class="bi bi-exclamation-triangle"></i> Top Pending Parties
+    </h3>
+    <div class="table-container">
+      <div class="table-responsive">
+        <table class="table data-table table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Party</th>
+              <th>Total Invoiced</th>
+              <th>Total Paid</th>
+              <th>Pending</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for party_data in top_pending_parties %}
+            <tr>
+              <td class="fw-semibold" data-label="Party">{{ party_data.party.name }}</td>
+              <td data-label="Total Invoiced">₹{{ party_data.total_invoiced|floatformat:2 }}</td>
+              <td class="text-success" data-label="Total Paid">₹{{ party_data.total_paid|floatformat:2 }}</td>
+              <td class="text-danger fw-bold" data-label="Pending">₹{{ party_data.pending|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="empty-state">
+                <i class="bi bi-check-circle" style="font-size: 3rem; opacity: 0.3;"></i>
+                <p class="mb-0 mt-2">No pending parties. All clear!</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 </div>
 {% endblock %}

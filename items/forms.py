@@ -1,8 +1,15 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Item
+import os
 
 
 class ItemForm(forms.ModelForm):
+    """
+    Form for creating and updating inventory items.
+    Includes comprehensive validation for prices, percentages, and images.
+    """
+    
     image = forms.ImageField(
         required=False,
         widget=forms.ClearableFileInput(attrs={
@@ -56,30 +63,43 @@ class ItemForm(forms.ModelForm):
         }
 
     def clean(self):
+        """Validate form-level business logic."""
         cleaned_data = super().clean()
         price_retail = cleaned_data.get('price_retail')
         price_wholesale = cleaned_data.get('price_wholesale')
         discount = cleaned_data.get('discount')
         gst = cleaned_data.get('gst_percent')
 
+        # Price validation
         if price_retail and price_wholesale and price_wholesale > price_retail:
             self.add_error('price_wholesale', 'Wholesale price cannot exceed retail price.')
 
+        # Discount validation
         if discount and (discount < 0 or discount > 100):
             self.add_error('discount', 'Discount must be between 0% and 100%.')
 
+        # GST validation
         if gst and (gst < 0 or gst > 50):
             self.add_error('gst_percent', 'GST must be between 0% and 50%.')
 
         return cleaned_data
 
     def clean_image(self):
+        """
+        Validate uploaded image file.
+        Checks: file type, size, and extension.
+        """
         image = self.cleaned_data.get('image')
+        
         if image:
+            # Allowed MIME types
             valid_mime_types = ['image/jpeg', 'image/png', 'image/gif']
+            
+            # Check content type
             if image.content_type not in valid_mime_types:
                 raise forms.ValidationError('Only JPEG, PNG, and GIF images are allowed.')
 
+            # Check file size (5MB limit)
             if image.size > 5 * 1024 * 1024:  # 5MB
                 raise forms.ValidationError('Image file size cannot exceed 5MB.')
 

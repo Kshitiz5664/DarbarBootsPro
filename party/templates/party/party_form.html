@@ -1,25 +1,282 @@
 {% extends 'wholesale/base.html' %}
 {% load static %}
-
 {% block content %}
 
-<div class="container py-4">
+<style>
+  /* ==================== VARIABLES ==================== */
+  :root {
+    --color-primary: #0d6efd;
+    --color-info: #00c2ff;
+    --color-success: #28a745;
+    --color-secondary: #6c757d;
+    --color-danger: #dc3545;
+    --color-text-light: #f5f5f5;
+    --color-text-muted: #b8b8b8;
+    --color-text-dark: #e0e0e0;
+    --color-bg-overlay: rgba(255, 255, 255, 0.08);
+    --color-bg-header: rgba(0, 194, 255, 0.2);
+    --color-bg-input: rgba(255, 255, 255, 0.05);
+    --color-border: rgba(255, 255, 255, 0.15);
+    --border-radius-md: 10px;
+    --border-radius-lg: 20px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    --transition-default: all 0.3s ease;
+    --shadow-default: 0 10px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  /* ==================== CONTAINER ==================== */
+  .form-container {
+    padding: var(--spacing-xl) var(--spacing-md);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ==================== CARD ==================== */
+  .form-card {
+    background: var(--color-bg-overlay);
+    backdrop-filter: blur(16px);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-out;
+    box-shadow: var(--shadow-default);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ==================== HEADER ==================== */
+  .form-header {
+    background: linear-gradient(135deg, var(--color-bg-header), rgba(0, 123, 255, 0.15));
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .form-title {
+    color: var(--color-info);
+    font-size: clamp(1.4rem, 4vw, 1.8rem);
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .form-subtitle {
+    color: var(--color-text-muted);
+    margin: var(--spacing-xs) 0 0 0;
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
+  }
+
+  /* ==================== FORM SECTION ==================== */
+  .form-section {
+    padding: var(--spacing-xl);
+  }
+
+  .section-title {
+    color: var(--color-info);
+    font-size: clamp(1.1rem, 3vw, 1.2rem);
+    font-weight: 600;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ==================== FORM ELEMENTS ==================== */
+  .form-label {
+    color: var(--color-text-dark);
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    font-size: clamp(0.9rem, 2vw, 0.95rem);
+    display: block;
+  }
+
+  .form-control,
+  .form-select,
+  textarea.form-control {
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-light);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    transition: var(--transition-default);
+    width: 100%;
+  }
+
+  .form-control:focus,
+  .form-select:focus,
+  textarea.form-control:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-info);
+    box-shadow: 0 0 0 0.2rem rgba(0, 194, 255, 0.25);
+    color: #fff;
+    outline: none;
+  }
+
+  .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  textarea.form-control {
+    min-height: 100px;
+    resize: vertical;
+  }
+
+  /* ==================== FORM TEXT ==================== */
+  .form-text {
+    color: #999;
+    font-size: clamp(0.8rem, 2vw, 0.85rem);
+    margin-top: 5px;
+    display: block;
+  }
+
+  /* ==================== VALIDATION ==================== */
+  .text-danger {
+    color: var(--color-danger) !important;
+    font-weight: 700;
+  }
+
+  .invalid-feedback {
+    color: var(--color-danger);
+    font-size: clamp(0.8rem, 2vw, 0.875rem);
+    margin-top: 5px;
+    display: block;
+  }
+
+  /* ==================== FORM ACTIONS ==================== */
+  .form-actions {
+    padding: var(--spacing-xl);
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid var(--color-border);
+    flex-wrap: wrap;
+  }
+
+  .btn-form {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) clamp(20px, 4vw, 30px);
+    font-size: clamp(0.95rem, 2vw, 1.05rem);
+    font-weight: 600;
+    border-radius: var(--border-radius-md);
+    transition: var(--transition-default);
+  }
+
+  .btn-form:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ==================== RESPONSIVE DESIGN ==================== */
+  @media (max-width: 768px) {
+    .form-container {
+      padding: var(--spacing-lg) var(--spacing-sm);
+    }
+
+    .form-header {
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .form-section {
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .form-actions {
+      padding: var(--spacing-lg) var(--spacing-md);
+      flex-direction: column;
+    }
+
+    .btn-form {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .col-md-6 {
+      margin-bottom: var(--spacing-md);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .form-header {
+      padding: var(--spacing-md);
+    }
+
+    .form-section {
+      padding: var(--spacing-md);
+    }
+
+    .form-actions {
+      padding: var(--spacing-md);
+    }
+
+    .btn-form {
+      padding: 10px var(--spacing-md);
+    }
+  }
+
+  /* ==================== TOUCH OPTIMIZATIONS ==================== */
+  @media (hover: none) and (pointer: coarse) {
+    .btn-form,
+    .form-control {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-form:active {
+      transform: scale(0.98);
+    }
+  }
+
+  /* ==================== REDUCED MOTION ==================== */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+
+<div class="form-container">
   <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-12">
       <div class="card form-card">
+        <!-- Header -->
         <div class="form-header">
           <h3 class="form-title">
-            <i class="bi bi-person-plus"></i> {{ title }}
+            <i class="bi bi-person-plus"></i>
+            <span>{{ title }}</span>
           </h3>
           <p class="form-subtitle">{{ subtitle|default:"Add or update party information" }}</p>
         </div>
 
+        <!-- Form -->
         <form method="post" novalidate class="needs-validation">
           {% csrf_token %}
           
+          <!-- Form Section -->
           <div class="form-section">
             <h5 class="section-title">
-              <i class="bi bi-info-circle"></i> Party Details
+              <i class="bi bi-info-circle"></i>
+              <span>Party Details</span>
             </h5>
             
             <div class="row g-3">
@@ -33,7 +290,7 @@
                 </label>
                 {{ field }}
                 {% if field.help_text %}
-                <small class="form-text text-muted">{{ field.help_text }}</small>
+                <small class="form-text">{{ field.help_text }}</small>
                 {% endif %}
                 {% if field.errors %}
                 <div class="invalid-feedback d-block">{{ field.errors|striptags }}</div>
@@ -43,12 +300,15 @@
             </div>
           </div>
 
+          <!-- Form Actions -->
           <div class="form-actions">
-            <button type="submit" class="btn btn-success btn-lg">
-              <i class="bi bi-check-circle"></i> Save Party
+            <button type="submit" class="btn btn-success btn-form">
+              <i class="bi bi-check-circle"></i>
+              <span>Save Party</span>
             </button>
-            <a href="{% url 'party:party_list' %}" class="btn btn-outline-secondary btn-lg">
-              <i class="bi bi-x-circle"></i> Cancel
+            <a href="{% url 'party:party_list' %}" class="btn btn-outline-secondary btn-form">
+              <i class="bi bi-x-circle"></i>
+              <span>Cancel</span>
             </a>
           </div>
         </form>
@@ -57,172 +317,49 @@
   </div>
 </div>
 
-<style>
-.form-card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(16px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 0;
-    overflow: hidden;
-    animation: fadeIn 0.6s ease-out;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
-}
-
-.form-header {
-    background: linear-gradient(135deg, rgba(0, 194, 255, 0.2), rgba(0, 123, 255, 0.15));
-    padding: 30px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.form-title {
-    color: #00c2ff;
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.form-subtitle {
-    color: #b8b8b8;
-    margin: 8px 0 0 0;
-    font-size: 0.95rem;
-}
-
-.form-section {
-    padding: 30px;
-}
-
-.section-title {
-    color: #00c2ff;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.form-label {
-    color: #e0e0e0;
-    font-weight: 500;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-}
-
-.form-control, .form-select, textarea.form-control {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #f5f5f5;
-    border-radius: 10px;
-    padding: 12px 16px;
-    transition: all 0.3s ease;
-}
-
-.form-control:focus, .form-select:focus, textarea.form-control:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: #00c2ff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 194, 255, 0.25);
-    color: #fff;
-}
-
-.form-control::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-}
-
-.form-text {
-    color: #999;
-    font-size: 0.85rem;
-    margin-top: 5px;
-    display: block;
-}
-
-.form-check-input {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-}
-
-.form-check-input:checked {
-    background-color: #00c2ff;
-    border-color: #00c2ff;
-}
-
-.form-check-label {
-    color: #e0e0e0;
-    cursor: pointer;
-}
-
-.form-actions {
-    padding: 30px;
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.03);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.text-danger {
-    color: #ff6b6b !important;
-}
-
-.invalid-feedback {
-    color: #ff6b6b;
-    font-size: 0.875rem;
-    margin-top: 5px;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@media (max-width: 768px) {
-    .form-header {
-        padding: 20px;
-    }
-    
-    .form-section {
-        padding: 20px;
-    }
-    
-    .form-title {
-        font-size: 1.4rem;
-    }
-    
-    .col-md-6 {
-        margin-bottom: 15px;
-    }
-}
-</style>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Add Bootstrap validation classes
+(function() {
+  'use strict';
+
+  document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     
-    form.addEventListener('submit', function(event) {
+    // Form validation
+    if (form) {
+      form.addEventListener('submit', function(event) {
         if (!form.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
+          event.preventDefault();
+          event.stopPropagation();
         }
         form.classList.add('was-validated');
-    });
+      });
+    }
     
     // Auto-focus first input
-    const firstInput = form.querySelector('input, select, textarea');
+    const firstInput = form.querySelector('input:not([type="hidden"]), select, textarea');
     if (firstInput) {
+      setTimeout(function() {
         firstInput.focus();
+      }, 100);
     }
-});
+
+    // Phone number formatting
+    const phoneInput = form.querySelector('input[name="phone"]');
+    if (phoneInput) {
+      phoneInput.addEventListener('input', function() {
+        // Remove non-digits except +
+        let value = this.value.replace(/[^\d+]/g, '');
+        this.value = value;
+      });
+    }
+
+    // Smooth scroll to first error
+    const firstError = document.querySelector('.invalid-feedback');
+    if (firstError) {
+      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+})();
 </script>
 
 {% endblock %}

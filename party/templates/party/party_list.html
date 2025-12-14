@@ -3,67 +3,310 @@
 {% block content %}
 
 <style>
-  /* Circular Action Buttons - Same Style as Invoice Page */
+  /* ==================== VARIABLES ==================== */
+  :root {
+    --color-primary: #0d6efd;
+    --color-info: #0dcaf0;
+    --color-danger: #dc3545;
+    --color-success: #28a745;
+    --color-text-muted: #6c757d;
+    --border-radius-sm: 8px;
+    --border-radius-md: 12px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --transition-default: all 0.25s ease;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* ==================== CONTAINER ==================== */
+  .party-container {
+    padding: var(--spacing-lg) var(--spacing-md);
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ==================== HEADER ==================== */
+  .party-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+  }
+
+  .party-title {
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .btn-add-party {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-weight: 600;
+  }
+
+  /* ==================== SEARCH BAR ==================== */
+  .search-container {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .search-box {
+    position: relative;
+    max-width: 500px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 45px;
+    border-radius: var(--border-radius-md);
+    border: 1px solid #dee2e6;
+    font-size: clamp(0.9rem, 2vw, 1rem);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+  }
+
+  /* ==================== CARD ==================== */
+  .party-card {
+    border-radius: var(--border-radius-md);
+    border: none;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  /* ==================== TABLE ==================== */
+  .party-table {
+    margin-bottom: 0;
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
+  }
+
+  .party-table thead {
+    background-color: #f8f9fa;
+  }
+
+  .party-table th {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
+    letter-spacing: 0.5px;
+    padding: var(--spacing-md);
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  .party-table td {
+    padding: var(--spacing-md);
+    vertical-align: middle;
+  }
+
+  .party-table tbody tr {
+    transition: background-color 0.2s ease;
+  }
+
+  .party-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+  }
+
+  /* ==================== ACTION BUTTONS ==================== */
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
   .action-btn {
-      border-radius: 50%;
-      width: 38px;
-      height: 38px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.25s ease;
-      font-size: 1rem;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-default);
+    font-size: 1rem;
+    border: 2px solid;
+    background: transparent;
   }
 
-  /* View */
   .view-btn {
-      border: 2px solid #0dcaf0;
-      background: transparent;
-      color: #0dcaf0;
+    border-color: var(--color-info);
+    color: var(--color-info);
   }
+
   .view-btn:hover {
-      background: #0dcaf0;
-      color: white;
+    background: var(--color-info);
+    color: white;
   }
 
-  /* Edit */
   .edit-btn {
-      border: 2px solid #0d6efd;
-      background: transparent;
-      color: #0d6efd;
-  }
-  .edit-btn:hover {
-      background: #0d6efd;
-      color: white;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
   }
 
-  /* Delete */
-  .delete-btn {
-      border: 2px solid #dc3545;
-      background: transparent;
-      color: #dc3545;
+  .edit-btn:hover {
+    background: var(--color-primary);
+    color: white;
   }
+
+  .delete-btn {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+
   .delete-btn:hover {
-      background: #dc3545;
-      color: white;
+    background: var(--color-danger);
+    color: white;
+  }
+
+  /* ==================== EMPTY STATE ==================== */
+  .empty-state {
+    text-align: center;
+    padding: 60px var(--spacing-md);
+    color: var(--color-text-muted);
+  }
+
+  .empty-icon {
+    font-size: clamp(3rem, 8vw, 4rem);
+    margin-bottom: var(--spacing-md);
+    opacity: 0.3;
+  }
+
+  /* ==================== RESPONSIVE DESIGN ==================== */
+  @media (max-width: 992px) {
+    .party-table {
+      font-size: 0.85rem;
+    }
+
+    .party-table th,
+    .party-table td {
+      padding: var(--spacing-sm);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .party-container {
+      padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    .party-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .btn-add-party {
+      justify-content: center;
+    }
+
+    /* Hide less important columns on mobile */
+    .party-table th:nth-child(3),
+    .party-table td:nth-child(3),
+    .party-table th:nth-child(4),
+    .party-table td:nth-child(4),
+    .party-table th:nth-child(8),
+    .party-table td:nth-child(8) {
+      display: none;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .action-btn {
+      width: 100%;
+      border-radius: var(--border-radius-sm);
+    }
+  }
+
+  @media (max-width: 480px) {
+    /* Show only essential columns */
+    .party-table th:nth-child(5),
+    .party-table td:nth-child(5),
+    .party-table th:nth-child(6),
+    .party-table td:nth-child(6) {
+      display: none;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      font-size: 0.9rem;
+    }
+  }
+
+  /* ==================== TOUCH OPTIMIZATIONS ==================== */
+  @media (hover: none) and (pointer: coarse) {
+    .action-btn {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+  }
+
+  /* ==================== PRINT STYLES ==================== */
+  @media print {
+    .party-header,
+    .search-container,
+    .action-buttons {
+      display: none;
+    }
+
+    .party-table {
+      font-size: 10pt;
+    }
   }
 </style>
 
-<div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="fw-bold text-primary mb-0">Party Directory</h3>
-    <a href="{% url 'party:party_create' %}" class="btn btn-primary shadow-sm">
-      <i class="bi bi-plus-lg"></i> Add Party
+<div class="party-container">
+  <!-- Header -->
+  <div class="party-header">
+    <h3 class="party-title">Party Directory</h3>
+    <a href="{% url 'party:party_create' %}" class="btn btn-primary btn-add-party shadow-sm">
+      <i class="bi bi-plus-lg"></i>
+      <span>Add Party</span>
     </a>
   </div>
 
+  <!-- Search Bar -->
+  <div class="search-container">
+    <div class="search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input 
+        type="text" 
+        class="form-control search-input" 
+        id="searchInput" 
+        placeholder="Search by name, contact, phone..."
+        aria-label="Search parties"
+      >
+    </div>
+  </div>
+
+  <!-- Party Table -->
   {% if party_data %}
-  <div class="card shadow-sm border-0">
+  <div class="card party-card">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table align-middle table-hover mb-0">
-          <thead class="table-light">
+        <table class="table party-table align-middle table-hover">
+          <thead>
             <tr>
               <th>#</th>
               <th>Name</th>
@@ -76,47 +319,50 @@
               <th class="text-center">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="partyTableBody">
             {% for data in party_data %}
-            <tr>
+            <tr class="party-row" 
+                data-name="{{ data.party.name|lower }}" 
+                data-contact="{{ data.party.contact_person|default:''|lower }}"
+                data-phone="{{ data.party.phone|default:''|lower }}">
               <td>{{ forloop.counter }}</td>
-              <td>{{ data.party.name }}</td>
+              <td class="fw-semibold">{{ data.party.name }}</td>
               <td>{{ data.party.contact_person|default:"—" }}</td>
               <td>{{ data.party.phone|default:"—" }}</td>
               <td>₹{{ data.total_invoiced|floatformat:2 }}</td>
-              <td class="text-success">₹{{ data.total_paid|floatformat:2 }}</td>
+              <td class="text-success fw-semibold">₹{{ data.total_paid|floatformat:2 }}</td>
               <td class="text-danger fw-semibold">₹{{ data.pending|floatformat:2 }}</td>
-              <td>{{ data.open_invoices }} open</td>
-
-              <td class="text-center">
-
-                <!-- VIEW BUTTON -->
-                <a href="{% url 'party:party_detail' data.party.id %}"
-                   class="action-btn view-btn me-2"
-                   data-bs-toggle="tooltip"
-                   title="View Party Details">
-                  <i class="bi bi-eye"></i>
-                </a>
-
-                <!-- EDIT BUTTON -->
-                <a href="{% url 'party:party_edit' data.party.id %}"
-                   class="action-btn edit-btn me-2"
-                   data-bs-toggle="tooltip"
-                   title="Edit Party">
-                  <i class="bi bi-pencil"></i>
-                </a>
-
-                <!-- DELETE BUTTON -->
-                <a href="{% url 'party:party_delete' data.party.id %}"
-                   class="action-btn delete-btn"
-                   data-bs-toggle="tooltip"
-                   title="Delete Party"
-                   onclick="return confirm('Are you sure you want to delete this party?');">
-                  <i class="bi bi-trash"></i>
-                </a>
-
+              <td>
+                <span class="badge bg-warning text-dark">{{ data.open_invoices }} open</span>
               </td>
+              <td>
+                <div class="action-buttons">
+                  <a href="{% url 'party:party_detail' data.party.id %}"
+                     class="action-btn view-btn"
+                     data-bs-toggle="tooltip"
+                     title="View Details"
+                     aria-label="View party details">
+                    <i class="bi bi-eye"></i>
+                  </a>
 
+                  <a href="{% url 'party:party_edit' data.party.id %}"
+                     class="action-btn edit-btn"
+                     data-bs-toggle="tooltip"
+                     title="Edit Party"
+                     aria-label="Edit party">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+
+                  <a href="{% url 'party:party_delete' data.party.id %}"
+                     class="action-btn delete-btn"
+                     data-bs-toggle="tooltip"
+                     title="Delete Party"
+                     aria-label="Delete party"
+                     onclick="return confirm('Are you sure you want to delete {{ data.party.name }}?');">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                </div>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -126,15 +372,70 @@
   </div>
 
   {% else %}
-  <div class="alert alert-info text-center shadow-sm">No parties available yet.</div>
+  <div class="alert alert-info text-center shadow-sm">
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="bi bi-people"></i>
+      </div>
+      <h5>No parties available yet</h5>
+      <p class="mb-0">Start by adding your first party to the system</p>
+    </div>
+  </div>
   {% endif %}
 </div>
 
-<!-- Bootstrap Tooltip Activation -->
 <script>
-  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-    new bootstrap.Tooltip(el);
+(function() {
+  'use strict';
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    const partyRows = document.querySelectorAll('.party-row');
+
+    if (searchInput && partyRows.length > 0) {
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+
+        partyRows.forEach(function(row) {
+          const name = row.dataset.name || '';
+          const contact = row.dataset.contact || '';
+          const phone = row.dataset.phone || '';
+
+          if (name.includes(searchTerm) || 
+              contact.includes(searchTerm) || 
+              phone.includes(searchTerm)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        updateRowNumbers();
+      });
+    }
+
+    // Update row numbers after filtering
+    function updateRowNumbers() {
+      const visibleRows = Array.from(partyRows).filter(function(row) {
+        return row.style.display !== 'none';
+      });
+
+      visibleRows.forEach(function(row, index) {
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell) {
+          firstCell.textContent = index + 1;
+        }
+      });
+    }
   });
+})();
 </script>
 
 {% endblock %}

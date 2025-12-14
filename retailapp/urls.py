@@ -2,29 +2,25 @@
 from django.urls import path
 from . import views
 
-app_name = "retailapp"
+app_name = 'retailapp'
 
 urlpatterns = [
-    # Console (main billing screen)
-    path("billing/", views.RetailBillingConsoleView.as_view(), name="billing_console"),
-
-    # Invoice CRUD
-    path("invoice/create/", views.RetailInvoiceCreateView.as_view(), name="invoice_create"),
-    path("invoice/<int:pk>/", views.RetailInvoiceDetailView.as_view(), name="invoice_detail"),
-    path("invoice/<int:pk>/update/", views.RetailInvoiceUpdateView.as_view(), name="invoice_update"),
-    path("invoice/<int:pk>/delete/", views.RetailInvoiceDeleteView.as_view(), name="invoice_delete"),
-
-    # Items
-    path("invoice/<int:invoice_id>/item/add/", views.RetailInvoiceItemCreateView.as_view(), name="item_add"),
-    path("invoice/item/<int:pk>/edit/", views.RetailInvoiceItemUpdateView.as_view(), name="item_edit"),
-    path("invoice/item/<int:pk>/delete/", views.RetailInvoiceItemDeleteView.as_view(), name="item_delete"),
-
-    # Returns
-    path("invoice/<int:invoice_id>/return/add/", views.RetailReturnCreateView.as_view(), name="return_add"),
-    path("return/<int:pk>/edit/", views.RetailReturnUpdateView.as_view(), name="return_edit"),
-    path("return/<int:pk>/delete/", views.RetailReturnDeleteView.as_view(), name="return_delete"),
-
-    # PDF Export
-    path("invoice/<int:pk>/pdf/", views.RetailInvoicePDFView.as_view(), name="invoice_pdf"),
-]
+    # Dashboard
+    path('', views.RetailDashboardView.as_view(), name='dashboard'),
     
+    # Invoice CRUD
+    path('invoice/create/', views.RetailInvoiceCreateView.as_view(), name='invoice_create'),
+    path('invoice/<int:invoice_id>/', views.RetailInvoiceDetailView.as_view(), name='invoice_detail'),
+    path('invoice/<int:invoice_id>/update/', views.RetailInvoiceUpdateView.as_view(), name='invoice_update'),
+    path('invoice/<int:invoice_id>/delete/', views.retail_invoice_delete, name='invoice_delete'),
+    path('invoice/<int:invoice_id>/pdf/', views.retail_invoice_pdf, name='invoice_pdf'),
+    
+    # Returns
+    path('invoice/<int:invoice_id>/return/', views.RetailReturnCreateView.as_view(), name='return_create'),
+    
+    # AJAX Endpoints
+    path('ajax/item/<int:item_id>/', views.ajax_get_item_details, name='ajax_item_details'),
+    path('ajax/calculate/', views.ajax_calculate_item_total, name='ajax_calculate_total'),
+    path('ajax/toggle-payment/<int:invoice_id>/', views.ajax_toggle_payment_status, name='ajax_toggle_payment'),
+    path('ajax/search-items/', views.ajax_search_items, name='ajax_search_items'),
+]

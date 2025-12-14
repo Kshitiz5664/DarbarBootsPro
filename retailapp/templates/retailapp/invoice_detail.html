@@ -1,0 +1,337 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'retailapp:dashboard' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<section class="invoice-bg py-4">
+
+<!-- Action Buttons Row -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2 flex-wrap">
+            <a href="{% url 'retailapp:invoice_update' invoice.id %}" class="btn btn-warning">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <a href="{% url 'retailapp:invoice_pdf' invoice.id %}" class="btn btn-info">
+                <i class="bi bi-download"></i> Download PDF
+            </a>
+            <a href="{% url 'retailapp:return_create' invoice.id %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-return-left"></i> Process Return
+            </a>
+            <a href="{% url 'retailapp:invoice_delete' invoice.id %}" class="btn btn-danger" 
+               onclick="return confirm('Are you sure you want to delete this invoice?');">
+                <i class="bi bi-trash"></i> Delete
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Header Card -->
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(238, 90, 111, 0.15)); border: none;">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-0 text-light">
+                    <i class="bi bi-receipt text-danger"></i>
+                    Invoice #{{ invoice.invoice_number }}
+                </h4>
+                <p class="mb-0 text-muted small">Created on {{ invoice.created_at|date:"d M Y, h:i A" }}</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                {% if invoice.is_paid %}
+                    <span class="badge bg-success fs-6 px-4 py-2">
+                        <i class="bi bi-check-circle"></i> PAID
+                    </span>
+                {% else %}
+                    <span class="badge bg-warning text-dark fs-6 px-4 py-2">
+                        <i class="bi bi-clock-history"></i> PENDING
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
+        <div class="row">
+            <!-- Customer Information -->
+            <div class="col-md-6">
+                <h6 class="text-info mb-3">
+                    <i class="bi bi-person-circle"></i> Customer Information
+                </h6>
+                <table class="table table-borderless detail-table">
+                    <tr>
+                        <td class="text-light fw-bold" style="width: 40%;">Customer Name:</td>
+                        <td class="text-light">{{ invoice.customer_name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-light fw-bold">Mobile:</td>
+                        <td class="text-light">{{ invoice.customer_mobile|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-light fw-bold">Invoice Date:</td>
+                        <td class="text-light">{{ invoice.date|date:"d M Y" }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Invoice Summary -->
+            <div class="col-md-6">
+                <h6 class="text-info mb-3">
+                    <i class="bi bi-calculator"></i> Invoice Summary
+                </h6>
+                <table class="table table-borderless detail-table">
+                    <tr>
+                        <td class="text-light fw-bold" style="width: 40%;">Base Amount:</td>
+                        <td class="text-light">₹ {{ invoice.base_amount|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-light fw-bold">Total GST:</td>
+                        <td class="text-light">₹ {{ invoice.total_gst|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-light fw-bold">Total Discount:</td>
+                        <td class="text-light">₹ {{ invoice.total_discount|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="border-top">
+                        <td class="text-success fw-bold fs-5">Final Amount:</td>
+                        <td class="text-success fw-bold fs-5">₹ {{ invoice.final_amount|floatformat:2 }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Notes Section -->
+        {% if invoice.notes %}
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <strong><i class="bi bi-info-circle"></i> Notes:</strong> {{ invoice.notes }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Invoice Items -->
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, rgba(0, 194, 255, 0.2), rgba(0, 123, 255, 0.15)); border: none;">
+        <h5 class="mb-0 text-light">
+            <i class="bi bi-cart3"></i> Invoice Items ({{ items_count }})
+        </h5>
+    </div>
+    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Item Name</th>
+                        <th class="text-center">Quantity</th>
+                        <th class="text-end">Rate (₹)</th>
+                        <th class="text-end">GST (₹)</th>
+                        <th class="text-end">Discount (₹)</th>
+                        <th class="text-end">Total (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong class="text-light">{{ item.display_name }}</strong>
+                        </td>
+                        <td class="text-center text-light">{{ item.quantity }}</td>
+                        <td class="text-end text-light">₹ {{ item.rate|floatformat:2 }}</td>
+                        <td class="text-end text-light">₹ {{ item.gst_amount|floatformat:2 }}</td>
+                        <td class="text-end text-light">₹ {{ item.discount_amount|floatformat:2 }}</td>
+                        <td class="text-end text-success fw-bold">₹ {{ item.total|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-3">No items found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-dark">
+                    <tr>
+                        <td colspan="6" class="text-end fw-bold">Grand Total:</td>
+                        <td class="text-end fw-bold text-success">₹ {{ invoice.final_amount|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Returns Section -->
+{% if returns_count > 0 %}
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(251, 146, 60, 0.15)); border: none;">
+        <h5 class="mb-0 text-light">
+            <i class="bi bi-arrow-return-left"></i> Returns ({{ returns_count }})
+        </h5>
+    </div>
+    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Return Date</th>
+                        <th>Item</th>
+                        <th class="text-center">Quantity</th>
+                        <th class="text-end">Amount (₹)</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for return in returns %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="text-light">{{ return.return_date|date:"d M Y" }}</td>
+                        <td class="text-light">
+                            {% if return.item %}
+                                {{ return.item.display_name }}
+                            {% else %}
+                                <span class="text-muted">Manual Return</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-light">{{ return.quantity }}</td>
+                        <td class="text-end text-warning fw-bold">₹ {{ return.amount|floatformat:2 }}</td>
+                        <td class="text-light">{{ return.reason|default:"-"|truncatewords:10 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Audit Information -->
+<div class="card shadow-lg border-0 rounded-4">
+    <div class="card-header" style="background: linear-gradient(135deg, rgba(108, 117, 125, 0.2), rgba(148, 163, 184, 0.15)); border: none;">
+        <h5 class="mb-0 text-light">
+            <i class="bi bi-clock-history"></i> Audit Information
+        </h5>
+    </div>
+    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
+        <div class="row">
+            <div class="col-md-6">
+                <p class="text-light mb-1">
+                    <strong>Created By:</strong> {{ invoice.created_by.get_full_name|default:invoice.created_by.username }}
+                </p>
+                <p class="text-muted small">{{ invoice.created_at|date:"d M Y, h:i A" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p class="text-light mb-1">
+                    <strong>Last Updated By:</strong> {{ invoice.updated_by.get_full_name|default:invoice.updated_by.username|default:"-" }}
+                </p>
+                <p class="text-muted small">{{ invoice.updated_at|date:"d M Y, h:i A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</section>
+
+<style>
+.invoice-bg {
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
+    min-height: 100vh;
+    padding: 30px 0;
+}
+
+.card-header {
+    padding: 20px 25px;
+}
+
+.card-body {
+    padding: 25px;
+}
+
+.detail-table td {
+    padding: 8px 0;
+    border: none;
+}
+
+.table {
+    color: #e0e0e0;
+}
+
+.table thead th {
+    color: #00c2ff;
+    border-color: rgba(0, 194, 255, 0.25);
+    background: rgba(0, 194, 255, 0.15);
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background: rgba(0, 194, 255, 0.08);
+}
+
+.table td {
+    border-color: rgba(0, 194, 255, 0.15);
+}
+
+.table-dark {
+    background: rgba(0, 194, 255, 0.15);
+    color: #00c2ff;
+}
+
+.table tfoot {
+    background: rgba(0, 194, 255, 0.15);
+}
+
+.badge {
+    font-weight: 600;
+}
+
+.btn {
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+    border: none;
+    color: #000;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+    border: none;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    border: none;
+}
+
+.alert-info {
+    background: rgba(23, 162, 184, 0.15);
+    border: 1px solid rgba(23, 162, 184, 0.3);
+    color: #17a2b8;
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

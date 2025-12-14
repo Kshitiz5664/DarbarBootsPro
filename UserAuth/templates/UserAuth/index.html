@@ -10,30 +10,54 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* ============================== GLOBAL STYLING ============================== */
+        /* ==================== VARIABLES & RESET ==================== */
+        :root {
+            --color-primary: #00c2ff;
+            --color-secondary: #007bff;
+            --color-success: #28a745;
+            --color-text-light: #f5f5f5;
+            --color-text-muted: #b8b8b8;
+            --color-text-dark: #999;
+            --color-border: rgba(255, 255, 255, 0.1);
+            --color-bg-overlay: rgba(255, 255, 255, 0.07);
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 20px;
+            --spacing-lg: 30px;
+            --spacing-xl: 50px;
+            --border-radius-sm: 6px;
+            --border-radius-md: 20px;
+            --border-radius-lg: 50px;
+            --transition-default: all 0.3s ease;
+            --shadow-sm: 0 4px 15px rgba(0, 194, 255, 0.3);
+            --shadow-md: 0 6px 20px rgba(0, 194, 255, 0.5);
+            --shadow-lg: 0 20px 50px rgba(0, 194, 255, 0.3);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* ==================== BASE STYLES ==================== */
         body {
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #0a0a1a, #101024, #1b1b3a, #002b4d);
             background-attachment: fixed;
             background-size: 400% 400%;
-            color: #f5f5f5;
+            color: var(--color-text-light);
             overflow-x: hidden;
             animation: bgShift 18s ease infinite;
+            line-height: 1.6;
         }
 
         @keyframes bgShift {
-            0% { background-position: 0% 50%; }
+            0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
         }
 
-        /* ============================== SCROLLBAR ============================== */
+        /* ==================== SCROLLBAR ==================== */
         ::-webkit-scrollbar {
             width: 10px;
         }
@@ -44,37 +68,37 @@
 
         ::-webkit-scrollbar-thumb {
             background: rgba(0, 194, 255, 0.6);
-            border-radius: 8px;
+            border-radius: var(--spacing-xs);
         }
 
-        /* ============================== NAVBAR ============================== */
+        /* ==================== NAVBAR ==================== */
         .navbar {
-            background: rgba(255, 255, 255, 0.07);
+            background: var(--color-bg-overlay);
             backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-            padding: 20px 50px;
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--spacing-md) var(--spacing-xl);
             position: fixed;
             top: 0;
             width: 100%;
             z-index: 1000;
-            transition: all 0.3s ease;
+            transition: var(--transition-default);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .navbar.scrolled {
-            padding: 15px 50px;
+            padding: 15px var(--spacing-xl);
             background: rgba(255, 255, 255, 0.1);
         }
 
         .navbar-brand {
             font-weight: 800;
             font-size: 1.8rem;
-            color: #00c2ff !important;
+            color: var(--color-primary) !important;
             text-transform: uppercase;
             letter-spacing: 2px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: var(--spacing-sm);
             transition: transform 0.3s ease;
         }
 
@@ -87,35 +111,35 @@
         }
 
         .login-button {
-            background: linear-gradient(135deg, #00c2ff, #007bff);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
             color: #fff;
             font-weight: 600;
-            border-radius: 50px;
-            padding: 12px 30px;
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-sm) var(--spacing-lg);
             border: none;
-            transition: all 0.3s ease;
+            transition: var(--transition-default);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 15px rgba(0, 194, 255, 0.3);
+            gap: var(--spacing-xs);
+            box-shadow: var(--shadow-sm);
         }
 
         .login-button:hover {
-            background: linear-gradient(135deg, #007bff, #00c2ff);
+            background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 194, 255, 0.5);
+            box-shadow: var(--shadow-md);
             color: #fff;
         }
 
-        /* ============================== HERO SECTION ============================== */
+        /* ==================== HERO SECTION ==================== */
         .hero {
             min-height: 70vh;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 120px 20px 60px;
+            padding: 120px var(--spacing-md) 60px;
             position: relative;
             overflow: hidden;
         }
@@ -132,8 +156,14 @@
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.2); opacity: 0.8; }
+            0%, 100% { 
+                transform: scale(1); 
+                opacity: 0.5; 
+            }
+            50% { 
+                transform: scale(1.2); 
+                opacity: 0.8; 
+            }
         }
 
         .hero-content {
@@ -143,17 +173,28 @@
             animation: fadeInUp 1s ease-out;
         }
 
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .hero h1 {
             font-size: clamp(2rem, 5vw, 3.5rem);
             font-weight: 900;
             color: #ffffff;
-            margin-bottom: 20px;
+            margin-bottom: var(--spacing-md);
             line-height: 1.2;
             text-shadow: 0 0 40px rgba(0, 194, 255, 0.5);
         }
 
         .hero h1 span {
-            background: linear-gradient(135deg, #00c2ff, #007bff);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -161,12 +202,12 @@
 
         .hero p {
             font-size: clamp(1rem, 2vw, 1.2rem);
-            color: #b8b8b8;
-            margin-bottom: 30px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-lg);
             line-height: 1.6;
         }
 
-        /* ============================== SEARCH BAR ============================== */
+        /* ==================== SEARCH SECTION ==================== */
         .search-section {
             padding: 40px 5%;
             max-width: 1400px;
@@ -182,18 +223,18 @@
         .search-input {
             width: 100%;
             padding: 18px 60px 18px 25px;
-            border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--color-border);
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             color: #fff;
             font-size: 1rem;
-            transition: all 0.3s ease;
+            transition: var(--transition-default);
         }
 
         .search-input:focus {
             outline: none;
-            border-color: #00c2ff;
+            border-color: var(--color-primary);
             box-shadow: 0 0 20px rgba(0, 194, 255, 0.3);
             background: rgba(255, 255, 255, 0.15);
         }
@@ -204,10 +245,10 @@
 
         .search-btn {
             position: absolute;
-            right: 8px;
+            right: var(--spacing-xs);
             top: 50%;
             transform: translateY(-50%);
-            background: linear-gradient(135deg, #00c2ff, #007bff);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
             border: none;
             border-radius: 50%;
             width: 45px;
@@ -217,7 +258,7 @@
             justify-content: center;
             color: #fff;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: var(--transition-default);
         }
 
         .search-btn:hover {
@@ -225,7 +266,7 @@
             box-shadow: 0 4px 15px rgba(0, 194, 255, 0.4);
         }
 
-        /* ============================== PRODUCTS SECTION ============================== */
+        /* ==================== PRODUCTS SECTION ==================== */
         .products-section {
             padding: 60px 5%;
             max-width: 1400px;
@@ -234,24 +275,24 @@
 
         .section-title {
             text-align: center;
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
             font-weight: 800;
-            color: #00c2ff;
-            margin-bottom: 50px;
+            color: var(--color-primary);
+            margin-bottom: var(--spacing-xl);
             text-shadow: 0 0 30px rgba(0, 194, 255, 0.3);
         }
 
         .products-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 30px;
+            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+            gap: var(--spacing-lg);
         }
 
         .product-card {
             background: rgba(255, 255, 255, 0.06);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius-md);
             overflow: hidden;
             transition: all 0.4s ease;
             cursor: pointer;
@@ -259,7 +300,7 @@
 
         .product-card:hover {
             transform: translateY(-10px);
-            box-shadow: 0 20px 50px rgba(0, 194, 255, 0.3);
+            box-shadow: var(--shadow-lg);
             border-color: rgba(0, 194, 255, 0.4);
         }
 
@@ -289,7 +330,7 @@
             background: rgba(0, 194, 255, 0.9);
             color: #fff;
             padding: 6px 14px;
-            border-radius: 20px;
+            border-radius: var(--border-radius-md);
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -303,7 +344,7 @@
             font-size: 1.3rem;
             font-weight: 700;
             color: #fff;
-            margin-bottom: 12px;
+            margin-bottom: var(--spacing-sm);
         }
 
         .product-meta {
@@ -312,34 +353,35 @@
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid var(--color-border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .product-code,
+        .product-stock {
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .product-code {
-            font-size: 0.85rem;
-            color: #00c2ff;
-            font-weight: 600;
+            color: var(--color-primary);
             background: rgba(0, 194, 255, 0.1);
             padding: 4px 10px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            border-radius: var(--border-radius-sm);
         }
 
         .product-stock {
-            font-size: 0.85rem;
-            color: #28a745;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            color: var(--color-success);
         }
 
         .product-price {
             font-size: 1.8rem;
             font-weight: 800;
-            color: #00c2ff;
+            color: var(--color-primary);
             margin-bottom: 5px;
         }
 
@@ -350,22 +392,22 @@
             letter-spacing: 0.5px;
         }
 
-        /* ============================== EMPTY STATE ============================== */
+        /* ==================== EMPTY STATE ==================== */
         .empty-state {
             text-align: center;
-            padding: 80px 20px;
+            padding: 80px var(--spacing-md);
         }
 
         .empty-icon {
             font-size: 5rem;
             color: rgba(255, 255, 255, 0.2);
-            margin-bottom: 20px;
+            margin-bottom: var(--spacing-md);
         }
 
         .empty-title {
             font-size: 1.8rem;
             font-weight: 700;
-            color: #999;
+            color: var(--color-text-dark);
             margin-bottom: 10px;
         }
 
@@ -374,11 +416,11 @@
             font-size: 1.1rem;
         }
 
-        /* ============================== FOOTER ============================== */
+        /* ==================== FOOTER ==================== */
         footer {
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid var(--color-border);
             padding: 40px 5%;
             margin-top: 80px;
             text-align: center;
@@ -392,7 +434,7 @@
         .footer-brand {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #00c2ff;
+            color: var(--color-primary);
             margin-bottom: 15px;
             display: flex;
             align-items: center;
@@ -401,90 +443,204 @@
         }
 
         .footer-text {
-            color: #999;
-            margin-bottom: 20px;
+            color: var(--color-text-dark);
+            margin-bottom: var(--spacing-md);
             line-height: 1.6;
         }
 
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 30px;
-            margin-bottom: 20px;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
             flex-wrap: wrap;
         }
 
         .footer-links a {
-            color: #999;
+            color: var(--color-text-dark);
             text-decoration: none;
             transition: color 0.3s ease;
         }
 
         .footer-links a:hover {
-            color: #00c2ff;
+            color: var(--color-primary);
         }
 
         .footer-bottom {
-            padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--color-border);
             color: #666;
             font-size: 0.9rem;
         }
 
-        /* ============================== ANIMATIONS ============================== */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
+        /* ==================== RIPPLE EFFECT ==================== */
+        @keyframes ripple {
             to {
-                opacity: 1;
-                transform: translateY(0);
+                transform: scale(4);
+                opacity: 0;
             }
         }
 
-        /* ============================== RESPONSIVE DESIGN ============================== */
+        /* ==================== RESPONSIVE DESIGN ==================== */
         @media (max-width: 992px) {
+            :root {
+                --spacing-xl: 30px;
+            }
+
             .navbar {
-                padding: 15px 30px;
+                padding: 15px var(--spacing-lg);
+            }
+
+            .navbar.scrolled {
+                padding: 12px var(--spacing-lg);
             }
 
             .products-grid {
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
             }
         }
 
         @media (max-width: 768px) {
+            :root {
+                --spacing-xl: 20px;
+            }
+
             .navbar {
-                padding: 12px 20px;
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+
+            .navbar.scrolled {
+                padding: 10px var(--spacing-md);
             }
 
             .navbar-brand {
                 font-size: 1.3rem;
             }
 
+            .navbar-brand i {
+                font-size: 1.5rem;
+            }
+
             .hero {
-                padding: 100px 20px 40px;
+                min-height: 60vh;
+                padding: 100px var(--spacing-md) 40px;
             }
 
             .products-grid {
                 grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
+
+            .product-image-wrapper {
+                height: 220px;
             }
 
             .footer-links {
                 flex-direction: column;
                 gap: 15px;
             }
+
+            .search-section {
+                padding: var(--spacing-lg) 5%;
+            }
         }
 
         @media (max-width: 480px) {
             .login-button {
-                padding: 10px 20px;
+                padding: 10px var(--spacing-md);
                 font-size: 0.9rem;
             }
 
-            .section-title {
-                font-size: 2rem;
+            .product-content {
+                padding: var(--spacing-md);
+            }
+
+            .product-name {
+                font-size: 1.1rem;
+            }
+
+            .product-price {
+                font-size: 1.5rem;
+            }
+
+            .empty-state {
+                padding: 60px var(--spacing-md);
+            }
+
+            .empty-icon {
+                font-size: 3.5rem;
+            }
+
+            .empty-title {
+                font-size: 1.5rem;
+            }
+
+            .search-input {
+                padding: 15px 55px 15px 20px;
+                font-size: 0.95rem;
+            }
+
+            .search-btn {
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
+
+            .product-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        /* ==================== TOUCH OPTIMIZATIONS ==================== */
+        @media (hover: none) and (pointer: coarse) {
+            .login-button,
+            .search-btn,
+            .product-card {
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .login-button:active,
+            .search-btn:active {
+                transform: scale(0.95);
+            }
+
+            .product-card:active {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* ==================== REDUCED MOTION ==================== */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ==================== PRINT STYLES ==================== */
+        @media print {
+            .navbar,
+            .search-section,
+            footer {
+                display: none;
+            }
+
+            .hero {
+                min-height: auto;
+                padding: var(--spacing-md);
+            }
+
+            .product-card {
+                break-inside: avoid;
             }
         }
     </style>
@@ -496,29 +652,29 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
                 <i class="bi bi-lightning-charge-fill"></i>
-                DarbarBootsPro
+                <span>DarbarBootsPro</span>
             </a>
             <div class="d-flex">
                 <a href="{% url 'UserAuth:login' %}" class="login-button">
                     <i class="bi bi-box-arrow-in-right"></i>
-                    Login
+                    <span>Login</span>
                 </a>
             </div>
         </div>
     </nav>
 
- <!-- Hero Section -->
-<section class="hero">
-    <div class="hero-content">
-        <h1>
-            Step Into Style with <span>Darbar Boots</span>
-        </h1>
-        <p>
-            Premium Footwear for Everyone. From Wholesale Bulk Orders to Retail Fashion Picks, 
-            we deliver unmatched quality, variety, and pricing you can trust.
-        </p>
-    </div>
-</section>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>
+                Step Into Style with <span>Darbar Boots</span>
+            </h1>
+            <p>
+                Premium Footwear for Everyone. From Wholesale Bulk Orders to Retail Fashion Picks, 
+                we deliver unmatched quality, variety, and pricing you can trust.
+            </p>
+        </div>
+    </section>
 
     <!-- Search Bar -->
     <section class="search-section">
@@ -528,8 +684,9 @@
                 class="search-input" 
                 id="searchInput" 
                 placeholder="Search products by name or code..."
+                aria-label="Search products"
             >
-            <button class="search-btn">
+            <button class="search-btn" aria-label="Search">
                 <i class="bi bi-search"></i>
             </button>
         </div>
@@ -545,9 +702,9 @@
             <div class="product-card" data-name="{{ item.name|lower }}" data-code="{{ item.hns_code|default:'na'|lower }}">
                 <div class="product-image-wrapper">
                     {% if item.image %}
-                    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="product-image" />
+                    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="product-image" loading="lazy" />
                     {% else %}
-                    <img src="https://via.placeholder.com/400x300/1b1b3a/00c2ff?text={{ item.name|slice:':1' }}" alt="{{ item.name }}" class="product-image" />
+                    <img src="https://via.placeholder.com/400x300/1b1b3a/00c2ff?text={{ item.name|slice:':1' }}" alt="{{ item.name }}" class="product-image" loading="lazy" />
                     {% endif %}
                     <span class="product-badge">Featured</span>
                 </div>
@@ -603,71 +760,86 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Navbar scroll effect
-        window.addEventListener('scroll', function() {
+        (function() {
+            'use strict';
+
+            // Navbar scroll effect
             const navbar = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
+            let ticking = false;
 
-        // Search functionality
-        const searchInput = document.getElementById('searchInput');
-        const productCards = document.querySelectorAll('.product-card');
-
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-
-            productCards.forEach(card => {
-                const name = card.dataset.name;
-                const code = card.dataset.code;
-
-                if (name.includes(searchTerm) || code.includes(searchTerm)) {
-                    card.style.display = 'block';
+            function updateNavbar() {
+                if (window.scrollY > 50) {
+                    navbar.classList.add('scrolled');
                 } else {
-                    card.style.display = 'none';
+                    navbar.classList.remove('scrolled');
+                }
+                ticking = false;
+            }
+
+            window.addEventListener('scroll', function() {
+                if (!ticking) {
+                    window.requestAnimationFrame(updateNavbar);
+                    ticking = true;
                 }
             });
-        });
 
-        // Add ripple effect to buttons
-        document.querySelectorAll('.login-button, .search-btn').forEach(button => {
-            button.addEventListener('click', function(e) {
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            const productCards = document.querySelectorAll('.product-card');
+
+            if (searchInput && productCards.length > 0) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+
+                    productCards.forEach(function(card) {
+                        const name = card.dataset.name || '';
+                        const code = card.dataset.code || '';
+
+                        if (name.includes(searchTerm) || code.includes(searchTerm)) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Ripple effect
+            function createRipple(e) {
+                const button = e.currentTarget;
                 const ripple = document.createElement('span');
-                const rect = this.getBoundingClientRect();
+                const rect = button.getBoundingClientRect();
                 const size = Math.max(rect.width, rect.height);
                 const x = e.clientX - rect.left - size / 2;
                 const y = e.clientY - rect.top - size / 2;
                 
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = x + 'px';
-                ripple.style.top = y + 'px';
-                ripple.style.position = 'absolute';
-                ripple.style.borderRadius = '50%';
-                ripple.style.background = 'rgba(255, 255, 255, 0.5)';
-                ripple.style.transform = 'scale(0)';
-                ripple.style.animation = 'ripple 0.6s ease-out';
-                ripple.style.pointerEvents = 'none';
+                ripple.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${x}px;
+                    top: ${y}px;
+                    position: absolute;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.5);
+                    transform: scale(0);
+                    animation: ripple 0.6s ease-out;
+                    pointer-events: none;
+                `;
                 
-                this.style.position = 'relative';
-                this.style.overflow = 'hidden';
-                this.appendChild(ripple);
+                button.style.position = 'relative';
+                button.style.overflow = 'hidden';
+                button.appendChild(ripple);
                 
-                setTimeout(() => ripple.remove(), 600);
-            });
-        });
-    </script>
-
-    <style>
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
+                setTimeout(function() {
+                    ripple.remove();
+                }, 600);
             }
-        }
-    </style>
+
+            document.querySelectorAll('.login-button, .search-btn').forEach(function(button) {
+                button.addEventListener('click', createRipple);
+            });
+        })();
+    </script>
 </body>
 
 </html>

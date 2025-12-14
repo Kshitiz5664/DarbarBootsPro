@@ -1,0 +1,397 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Process Return{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'retailapp:invoice_detail' invoice.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Invoice
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<section class="invoice-bg">
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card form-card shadow-lg">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-arrow-return-left"></i> Process Return
+                </h3>
+                <p class="form-subtitle">Create return for Invoice #{{ invoice.invoice_number }}</p>
+            </div>
+
+            <!-- Invoice Summary -->
+            <div class="form-section">
+                <h5 class="section-title">
+                    <i class="bi bi-receipt"></i> Invoice Details
+                </h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <label>Customer Name:</label>
+                            <p>{{ invoice.customer_name }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <label>Invoice Date:</label>
+                            <p>{{ invoice.date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <label>Total Amount:</label>
+                            <p>₹ {{ invoice.final_amount|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <label>Payment Status:</label>
+                            <p>
+                                {% if invoice.is_paid %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return Form -->
+            <form method="post" enctype="multipart/form-data" id="returnForm">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-box-seam"></i> Return Information
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Select Invoice Item</label>
+                            {{ form.item }}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Leave blank for manual return
+                            </small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Return Date <span class="text-danger">*</span></label>
+                            {{ form.return_date }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                            {{ form.quantity }}
+                            <small class="text-muted d-block mt-1" id="maxQtyHint">
+                                <i class="bi bi-info-circle"></i> Available quantity will be shown when item is selected
+                            </small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Return Amount (₹)</label>
+                            {{ form.amount }}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Auto-calculated for invoice items
+                            </small>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Reason for Return</label>
+                            {{ form.reason }}
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Attach Image (Optional)</label>
+                            {{ form.image }}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-camera"></i> Upload product image if applicable
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <i class="bi bi-check-circle"></i> Process Return
+                    </button>
+                    <a href="{% url 'retailapp:invoice_detail' invoice.id %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</section>
+
+<style>
+.invoice-bg {
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
+    padding: 60px 0;
+    min-height: 100vh;
+}
+
+.form-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-top: 30px;
+    overflow: hidden;
+}
+
+.form-header {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(251, 146, 60, 0.15));
+    padding: 30px;
+}
+
+.form-title {
+    color: #ffc107;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle {
+    color: #b8b8b8;
+    font-size: 0.95rem;
+    margin: 8px 0 0 0;
+}
+
+.form-section {
+    padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.section-title {
+    color: #ffc107;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.info-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    margin-bottom: 15px;
+}
+
+.info-card label {
+    color: #ffc107;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-card p {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.form-label {
+    color: #e0e0e0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-control, .form-select {
+    background: #000000 !important;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: #ffffff !important;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background: #000000 !important;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.3);
+    color: #ffffff !important;
+}
+
+select.form-select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    padding: 12px 8px !important;
+}
+
+textarea.form-control {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.text-muted {
+    color: #b8b8b8 !important;
+}
+
+.badge {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+.form-actions {
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    background: rgba(10, 10, 20, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+    border: none;
+    font-weight: 600;
+    padding: 12px 30px;
+    color: #000;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff9800, #ffc107);
+    transform: translateY(-2px);
+}
+
+.btn-outline-secondary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #b8b8b8;
+    padding: 12px 30px;
+}
+
+.text-danger {
+    color: #ff6b6b !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemSelect = document.getElementById('id_item');
+    const quantityInput = document.getElementById('id_quantity');
+    const amountInput = document.getElementById('id_amount');
+    const maxQtyHint = document.getElementById('maxQtyHint');
+    const returnForm = document.getElementById('returnForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Store item data
+    const itemData = {};
+    
+    {% for inv_item in invoice.retail_items.all %}
+    {% if inv_item.is_active %}
+    itemData['{{ inv_item.id }}'] = {
+        quantity: {{ inv_item.quantity }},
+        rate: {{ inv_item.rate|default:0 }},
+        gst_percent: {{ inv_item.gst_percent|default:0 }},
+        discount_percent: {{ inv_item.discount_percent|default:0 }},
+        total: {{ inv_item.total|default:0 }},
+        name: '{{ inv_item.display_name|escapejs }}'
+    };
+    {% endif %}
+    {% endfor %}
+
+    // When item is selected
+    if (itemSelect) {
+        itemSelect.addEventListener('change', function() {
+            const itemId = this.value;
+            
+            if (itemId && itemData[itemId]) {
+                const item = itemData[itemId];
+                
+                // Set max quantity
+                quantityInput.max = item.quantity;
+                quantityInput.value = 1;
+                
+                // Calculate and set amount
+                const perUnitAmount = item.quantity > 0 ? item.total / item.quantity : 0;
+                amountInput.value = perUnitAmount.toFixed(2);
+                amountInput.readOnly = true;
+                
+                // Update hint
+                maxQtyHint.innerHTML = `<i class="bi bi-info-circle"></i> Max returnable quantity: ${item.quantity}`;
+                
+            } else {
+                // Manual return
+                quantityInput.max = '';
+                quantityInput.value = 1;
+                amountInput.value = '';
+                amountInput.readOnly = false;
+                maxQtyHint.innerHTML = '<i class="bi bi-info-circle"></i> Enter quantity and amount manually';
+            }
+        });
+
+        // When quantity changes
+        quantityInput.addEventListener('input', function() {
+            const itemId = itemSelect.value;
+            
+            if (itemId && itemData[itemId]) {
+                const item = itemData[itemId];
+                const qty = parseFloat(this.value) || 0;
+                
+                // Validate max quantity
+                if (qty > item.quantity) {
+                    this.value = item.quantity;
+                    alert(`Maximum returnable quantity is ${item.quantity}`);
+                }
+                
+                // Calculate amount
+                const perUnitAmount = item.quantity > 0 ? item.total / item.quantity : 0;
+                const totalAmount = perUnitAmount * (parseFloat(this.value) || 0);
+                amountInput.value = totalAmount.toFixed(2);
+            }
+        });
+    }
+
+    // Form submission
+    returnForm.addEventListener('submit', function(e) {
+        const qty = parseFloat(quantityInput.value) || 0;
+        const amount = parseFloat(amountInput.value) || 0;
+        const itemId = itemSelect?.value;
+
+        // Validations
+        if (qty <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid quantity!');
+            quantityInput.focus();
+            return false;
+        }
+
+        if (!itemId && amount <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid return amount for manual return!');
+            amountInput.focus();
+            return false;
+        }
+
+        if (itemId && itemData[itemId]) {
+            const maxQty = itemData[itemId].quantity;
+            if (qty > maxQty) {
+                e.preventDefault();
+                alert(`Cannot return ${qty} units. Maximum returnable: ${maxQty}`);
+                return false;
+            }
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing Return...';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,506 @@
+{% extends "billing/base.html" %}
+{% load static %}
+
+{% block page_title %}Create Retail Bill{% endblock %}
+
+{% block action_button %}
+<a href="{% url 'retailapp:dashboard' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+</a>
+{% endblock %}
+
+{% block billing_content %}
+<section class="invoice-bg">
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card form-card shadow-lg">
+            <div class="form-header">
+                <h3 class="form-title">
+                    <i class="bi bi-receipt"></i> New Retail Bill
+                </h3>
+                <p class="form-subtitle">Create a new retail invoice for customer</p>
+            </div>
+
+            <form method="post" id="invoiceForm" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Customer Information -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-person"></i> Customer Information
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Name <span class="text-danger">*</span></label>
+                            <input type="text" name="customer_name" id="id_customer_name" 
+                                   class="form-control" placeholder="Customer name" required
+                                   value="{{ form.customer_name.value|default:'' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mobile Number</label>
+                            <input type="text" name="customer_mobile" id="id_customer_mobile" 
+                                   class="form-control" placeholder="Mobile number (optional)"
+                                   value="{{ form.customer_mobile.value|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Details -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-file-text"></i> Invoice Details
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
+                            <input type="date" name="date" id="id_date" class="form-control"
+                                   value="{{ form.date.value|date:'Y-m-d'|default:'' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Payment Status</label>
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" class="form-check-input" id="id_is_paid" name="is_paid"
+                                       {% if form.is_paid.value %}checked{% endif %}>
+                                <label class="form-check-label text-light" for="id_is_paid">Mark as Paid</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" id="id_notes" class="form-control" rows="1"
+                                      placeholder="Notes (optional)">{{ form.notes.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-cart"></i> Invoice Items
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered invoice-items-table" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:20%;">Item</th>
+                                    <th style="width:15%;">Manual Item</th>
+                                    <th style="width:8%;">Qty</th>
+                                    <th style="width:12%;">Rate (₹)</th>
+                                    <th style="width:10%;">GST %</th>
+                                    <th style="width:12%;">Disc %</th>
+                                    <th style="width:15%;">Total (₹)</th>
+                                    <th style="width:8%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                <!-- Initial Row -->
+                                <tr class="item-row" data-index="0">
+                                    <td>
+                                        <select name="item_id_0" class="form-select item-select">
+                                            <option value="">Select Item</option>
+                                            {% for item in items %}
+                                            <option value="{{ item.id }}" 
+                                                    data-rate="{{ item.price_retail|default:0 }}"
+                                                    data-gst="{{ item.gst_percent|default:0 }}">
+                                                {{ item.name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="manual_item_name_0" class="form-control" placeholder="Or enter name">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity_0" class="form-control qty-input" value="1" min="1">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="rate_0" class="form-control rate-input" value="0" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="gst_percent_0" class="form-control gst-input" value="0" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="discount_percent_0" class="form-control discount-input" value="0" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="total_0" class="form-control total-display" value="0.00" readonly>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-danger remove-row-btn">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="6" class="text-end"><strong>Grand Total:</strong></td>
+                                    <td><strong id="grandTotal">₹ 0.00</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-outline-info mt-2" id="addItemBtn">
+                        <i class="bi bi-plus-circle"></i> Add More Items
+                    </button>
+                </div>
+
+                <!-- Invoice Options -->
+                <div class="form-section">
+                    <h5 class="section-title">
+                        <i class="bi bi-gear"></i> Invoice Options
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="id_download_pdf"
+                                       name="download_pdf"
+                                       value="on">
+                                <label class="form-check-label text-light" for="id_download_pdf">
+                                    <i class="bi bi-download text-info"></i> Download PDF Invoice
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <i class="bi bi-check-circle"></i> Create Bill
+                    </button>
+                    <a href="{% url 'retailapp:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</section>
+
+<style>
+.invoice-bg { 
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f); 
+    padding: 60px 0; 
+    min-height: 100vh; 
+}
+
+.form-card { 
+    background: rgba(255, 255, 255, 0.08); 
+    backdrop-filter: blur(16px); 
+    border-radius: 20px; 
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    margin-top: 30px; 
+    overflow: hidden; 
+}
+
+.form-header { 
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(238, 90, 111, 0.15)); 
+    padding: 30px; 
+}
+
+.form-title { 
+    color: #ff6b6b; 
+    font-size: 1.8rem; 
+    font-weight: 700; 
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-subtitle { 
+    color: #b8b8b8; 
+    font-size: 0.95rem;
+    margin: 8px 0 0 0;
+}
+
+.form-section { 
+    padding: 30px; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+}
+
+.section-title { 
+    color: #ff6b6b; 
+    font-size: 1.2rem; 
+    font-weight: 600; 
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-label { 
+    color: #e0e0e0; 
+    font-weight: 500; 
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-control, .form-select { 
+    background: #000000 !important;
+    border: 1px solid rgba(255, 107, 107, 0.3); 
+    color: #ffffff !important;
+    border-radius: 10px; 
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background: #000000 !important;
+    border-color: #ff6b6b;
+    box-shadow: 0 0 0 0.25rem rgba(255, 107, 107, 0.3);
+    color: #ffffff !important;
+    outline: none;
+}
+
+select.form-select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    padding: 12px 8px !important;
+}
+
+.invoice-items-table { 
+    background: rgba(10, 10, 20, 0.6); 
+    border: 1px solid rgba(255, 107, 107, 0.25); 
+    border-radius: 10px; 
+    overflow: hidden;
+}
+
+.invoice-items-table thead { 
+    background: rgba(255, 107, 107, 0.18); 
+}
+
+.invoice-items-table th { 
+    color: #ff6b6b; 
+    border-color: rgba(255, 107, 107, 0.25); 
+    font-weight: 600;
+    padding: 12px;
+    text-align: center;
+}
+
+.invoice-items-table td { 
+    color: #e0e0e0; 
+    border-color: rgba(255, 107, 107, 0.15); 
+    background: rgba(20, 20, 40, 0.5); 
+    padding: 8px;
+}
+
+.invoice-items-table input.form-control,
+.invoice-items-table select.form-select {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+.invoice-items-table tfoot td {
+    background: rgba(255, 107, 107, 0.15);
+    color: #ff6b6b;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 15px;
+}
+
+.form-check-input { 
+    cursor: pointer; 
+    border: 1px solid rgba(255, 107, 107, 0.3); 
+    background-color: rgba(255, 255, 255, 0.1);
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-check-input:checked { 
+    background-color: #ff6b6b; 
+    border-color: #ff6b6b; 
+}
+
+.btn-outline-info {
+    border: 1px solid rgba(23, 162, 184, 0.5);
+    color: #17a2b8;
+}
+
+.form-actions { 
+    padding: 30px; 
+    display: flex; 
+    justify-content: center; 
+    gap: 15px;
+    background: rgba(10, 10, 20, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    border: none;
+    font-weight: 600;
+    padding: 12px 30px;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ee5a6f, #ff6b6b);
+    transform: translateY(-2px);
+}
+
+.btn-outline-secondary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #b8b8b8;
+    padding: 12px 30px;
+}
+
+.text-danger { 
+    color: #ff6b6b !important; 
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    const grandTotalEl = document.getElementById('grandTotal');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const invoiceForm = document.getElementById('invoiceForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    let rowIndex = 1;
+    
+    const safeFloat = v => parseFloat(v) || 0;
+    
+    function calcItemTotal(row) {
+        const qty = safeFloat(row.querySelector('.qty-input')?.value);
+        const rate = safeFloat(row.querySelector('.rate-input')?.value);
+        const gstPercent = safeFloat(row.querySelector('.gst-input')?.value);
+        const discountPercent = safeFloat(row.querySelector('.discount-input')?.value);
+        const totalDisplay = row.querySelector('.total-display');
+        
+        const baseAmount = qty * rate;
+        const gstAmount = (baseAmount * gstPercent) / 100;
+        const discountAmount = (baseAmount * discountPercent) / 100;
+        const total = baseAmount + gstAmount - discountAmount;
+        
+        if (totalDisplay) totalDisplay.value = total.toFixed(2);
+        
+        calcGrandTotal();
+    }
+    
+    function calcGrandTotal() {
+        let total = 0;
+        document.querySelectorAll('.total-display').forEach(inp => {
+            total += safeFloat(inp.value);
+        });
+        grandTotalEl.textContent = "₹ " + total.toFixed(2);
+    }
+    
+    itemsTableBody.addEventListener('input', e => {
+        if (e.target.classList.contains('qty-input') || 
+            e.target.classList.contains('rate-input') ||
+            e.target.classList.contains('gst-input') ||
+            e.target.classList.contains('discount-input')) {
+            const row = e.target.closest('tr');
+            if (row) calcItemTotal(row);
+        }
+    });
+    
+    itemsTableBody.addEventListener('change', e => {
+        if (e.target.classList.contains('item-select')) {
+            const row = e.target.closest('tr');
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            
+            if (selectedOption.value) {
+                const rate = selectedOption.getAttribute('data-rate');
+                const gst = selectedOption.getAttribute('data-gst');
+                
+                row.querySelector('.rate-input').value = rate || 0;
+                row.querySelector('.gst-input').value = gst || 0;
+                
+                calcItemTotal(row);
+            }
+        }
+    });
+    
+    addItemBtn.addEventListener('click', () => {
+        const templateRow = itemsTableBody.querySelector('.item-row:last-child');
+        if (!templateRow) return;
+        
+        const newRow = templateRow.cloneNode(true);
+        newRow.setAttribute('data-index', rowIndex);
+        
+        newRow.querySelectorAll('input, select').forEach(input => {
+            const oldName = input.name;
+            if (oldName) {
+                input.name = oldName.replace(/_\d+$/, `_${rowIndex}`);
+            }
+            
+            if (input.type === 'number') {
+                if (input.classList.contains('qty-input')) {
+                    input.value = '1';
+                } else {
+                    input.value = '0';
+                }
+            } else if (input.tagName.toLowerCase() === 'select') {
+                input.selectedIndex = 0;
+            } else {
+                input.value = '';
+            }
+        });
+        
+        itemsTableBody.appendChild(newRow);
+        rowIndex++;
+        
+        calcItemTotal(newRow);
+    });
+    
+    itemsTableBody.addEventListener('click', e => {
+        const btn = e.target.closest('.remove-row-btn');
+        if (!btn) return;
+        
+        const rows = itemsTableBody.querySelectorAll('.item-row');
+        if (rows.length <= 1) {
+            alert('At least one item is required!');
+            return;
+        }
+        
+        const row = btn.closest('tr');
+        row.remove();
+        
+        calcGrandTotal();
+    });
+    
+    invoiceForm.addEventListener('submit', function(e) {
+        const customerName = document.getElementById('id_customer_name');
+        
+        if (!customerName || !customerName.value.trim()) {
+            e.preventDefault();
+            alert('Please enter customer name!');
+            customerName?.focus();
+            return false;
+        }
+        
+        const validRows = Array.from(document.querySelectorAll('.item-row')).filter(row => {
+            const itemSelect = row.querySelector('.item-select');
+            const manualName = row.querySelector('[name^="manual_item_name"]');
+            const qty = row.querySelector('.qty-input');
+            const rate = row.querySelector('.rate-input');
+            
+            const hasItem = (itemSelect?.value) || (manualName?.value.trim());
+            const hasQty = qty && parseFloat(qty.value) > 0;
+            const hasRate = rate && parseFloat(rate.value) > 0;
+            
+            return hasItem && hasQty && hasRate;
+        });
+        
+        if (validRows.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one valid item!');
+            return false;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Bill...';
+    });
+    
+    document.querySelectorAll('.item-row').forEach(row => calcItemTotal(row));
+});
+</script>
+{% endblock %}

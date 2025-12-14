@@ -2,24 +2,261 @@
 {% block title %}Payment History{% endblock %}
 
 {% block content %}
-<h2>Payment History</h2>
-<p>Total Received: {{ total_received }}</p>
 
-<div class="table-responsive">
-  <table class="table table-striped table-bordered">
-    <thead><tr><th>ID</th><th>Party</th><th>Invoice</th><th>Date</th><th>Amount</th><th>Mode</th></tr></thead>
-    <tbody>
-      {% for payment in payments %}
-      <tr>
-        <td>{{ payment.id }}</td>
-        <td>{{ payment.party.name }}</td>
-        <td>{{ payment.invoice.id }}</td>
-        <td>{{ payment.date }}</td>
-        <td>{{ payment.amount }}</td>
-        <td>{{ payment.get_mode_display }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<style>
+  /* ==================== VARIABLES ==================== */
+  :root {
+    --border-radius-md: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ==================== PAGE HEADER ==================== */
+  .page-header {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .page-title {
+    font-weight: 700;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .summary-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #f8f9fa;
+    border-radius: var(--border-radius-md);
+    font-size: clamp(0.9rem, 2vw, 1rem);
+  }
+
+  .summary-value {
+    font-weight: 700;
+    color: #28a745;
+    font-size: clamp(1.1rem, 3vw, 1.3rem);
+  }
+
+  /* ==================== MODE SUMMARY ==================== */
+  .mode-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .mode-card {
+    padding: var(--spacing-lg);
+    background: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+
+  .mode-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .mode-card-title {
+    font-weight: 600;
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mode-card-amount {
+    font-weight: 700;
+    font-size: clamp(1.3rem, 3vw, 1.5rem);
+    color: #28a745;
+    margin-bottom: 4px;
+  }
+
+  .mode-card-count {
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
+    color: #6c757d;
+  }
+
+  /* ==================== TABLE CONTAINER ==================== */
+  .table-container {
+    background: white;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-top: var(--spacing-lg);
+  }
+
+  .data-table {
+    margin-bottom: 0;
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
+  }
+
+  .data-table thead {
+    background-color: #212529;
+    color: white;
+  }
+
+  .data-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
+    letter-spacing: 0.5px;
+    padding: var(--spacing-md);
+    border: none;
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding: var(--spacing-md);
+    vertical-align: middle;
+  }
+
+  .data-table tbody tr {
+    transition: background-color 0.2s ease;
+  }
+
+  .data-table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: #6c757d;
+  }
+
+  /* ==================== RESPONSIVE DESIGN ==================== */
+  @media (max-width: 768px) {
+    .mode-summary {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .data-table {
+      font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px 8px;
+    }
+
+    /* Hide less important columns on mobile */
+    .data-table th:nth-child(1),
+    .data-table td:nth-child(1),
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3) {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .mode-summary {
+      grid-template-columns: 1fr;
+    }
+
+    /* Show only essential info on small screens */
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4) {
+      display: none;
+    }
+
+    .summary-badge {
+      padding: 10px 16px;
+      font-size: 0.85rem;
+    }
+  }
+
+  /* ==================== PRINT STYLES ==================== */
+  @media print {
+    .mode-summary {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .data-table {
+      font-size: 9pt;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 8px;
+    }
+  }
+</style>
+
+<!-- Page Header -->
+<div class="page-header">
+  <h2 class="page-title">
+    <i class="bi bi-clock-history"></i> Payment History Report
+  </h2>
+  <div class="summary-badge">
+    <span>Total Received:</span>
+    <span class="summary-value">₹{{ total_received|floatformat:2 }}</span>
+    <span class="badge bg-success">{{ payments.count }} payments</span>
+  </div>
 </div>
+
+<!-- Payment Mode Summary -->
+{% if payment_by_mode %}
+<section style="margin-bottom: var(--spacing-xl);">
+  <h4 style="font-weight: 600; font-size: clamp(1.1rem, 3vw, 1.3rem); margin-bottom: var(--spacing-md);">
+    <i class="bi bi-wallet2"></i> Payment by Mode
+  </h4>
+  <div class="mode-summary">
+    {% for mode, data in payment_by_mode.items %}
+    <div class="mode-card">
+      <div class="mode-card-title">{{ mode }}</div>
+      <div class="mode-card-amount">₹{{ data.total|floatformat:2 }}</div>
+      <div class="mode-card-count">{{ data.count }} transaction{{ data.count|pluralize }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Payment History Table -->
+<section>
+  <h4 style="font-weight: 600; font-size: clamp(1.1rem, 3vw, 1.3rem); margin-bottom: var(--spacing-md);">
+    <i class="bi bi-list-check"></i> All Payments
+  </h4>
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table data-table table-striped align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Party</th>
+            <th>Invoice</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-semibold">{{ payment.party.name }}</td>
+            <td><span class="badge bg-info">INV-{{ payment.invoice.id }}</span></td>
+            <td>{{ payment.date|date:"d M Y" }}</td>
+            <td class="text-success fw-bold">₹{{ payment.amount|floatformat:2 }}</td>
+            <td><span class="badge bg-secondary">{{ payment.get_mode_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="empty-state">
+              <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+              <p class="mb-0 mt-2">No payment records found</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 {% endblock %}

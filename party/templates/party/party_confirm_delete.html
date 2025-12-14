@@ -1,20 +1,349 @@
 {% extends 'wholesale/base.html' %}
 {% block content %}
 
-<div class="container py-5">
-  <div class="card border-danger shadow-sm mx-auto" style="max-width: 600px;">
-    <div class="card-header bg-danger text-white">
-      <h5 class="mb-0">Confirm Deletion</h5>
+<style>
+  /* ==================== VARIABLES ==================== */
+  :root {
+    --color-danger: #dc3545;
+    --color-danger-hover: #c82333;
+    --color-secondary: #6c757d;
+    --color-text: #212529;
+    --border-radius-sm: 8px;
+    --border-radius-md: 12px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --transition-default: all 0.3s ease;
+    --shadow-default: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* ==================== CONTAINER ==================== */
+  .delete-container {
+    padding: var(--spacing-xl) var(--spacing-md);
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ==================== CARD ==================== */
+  .delete-card {
+    border: 2px solid var(--color-danger);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-default);
+    max-width: 600px;
+    width: 100%;
+    overflow: hidden;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ==================== HEADER ==================== */
+  .delete-header {
+    background: var(--color-danger);
+    color: white;
+    padding: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .delete-title {
+    margin: 0;
+    font-size: clamp(1.2rem, 3vw, 1.5rem);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  /* ==================== BODY ==================== */
+  .delete-body {
+    padding: var(--spacing-xl);
+    text-align: center;
+    background: white;
+  }
+
+  .delete-icon {
+    font-size: clamp(3rem, 8vw, 4rem);
+    color: var(--color-danger);
+    margin-bottom: var(--spacing-lg);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
+
+  .delete-message {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.5;
+  }
+
+  .party-name {
+    color: var(--color-danger);
+    font-weight: 700;
+    display: block;
+    margin: var(--spacing-sm) 0;
+  }
+
+  .warning-text {
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
+    color: var(--color-danger);
+    font-weight: 600;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-sm);
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: var(--border-radius-sm);
+  }
+
+  /* ==================== WARNING INFO ==================== */
+  .warning-info {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    text-align: left;
+  }
+
+  .warning-info h6 {
+    color: #856404;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    font-size: clamp(0.9rem, 2vw, 1rem);
+  }
+
+  .warning-info ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    color: #856404;
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
+  }
+
+  .warning-info li {
+    margin-bottom: 4px;
+  }
+
+  /* ==================== BUTTONS ==================== */
+  .delete-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-action {
+    padding: var(--spacing-sm) clamp(20px, 4vw, 30px);
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  .btn-delete-confirm {
+    background: var(--color-danger);
+    color: white;
+    border: 2px solid var(--color-danger);
+  }
+
+  .btn-delete-confirm:hover {
+    background: var(--color-danger-hover);
+    border-color: var(--color-danger-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+  }
+
+  .btn-cancel {
+    background: white;
+    color: var(--color-secondary);
+    border: 2px solid var(--color-secondary);
+  }
+
+  .btn-cancel:hover {
+    background: var(--color-secondary);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+  }
+
+  /* ==================== RESPONSIVE DESIGN ==================== */
+  @media (max-width: 768px) {
+    .delete-container {
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .delete-header {
+      padding: var(--spacing-md);
+    }
+
+    .delete-body {
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .delete-container {
+      padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    .delete-header {
+      padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    .delete-body {
+      padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    .delete-actions {
+      flex-direction: column;
+    }
+
+    .btn-action {
+      width: 100%;
+    }
+
+    .warning-info {
+      padding: var(--spacing-sm);
+    }
+  }
+
+  /* ==================== TOUCH OPTIMIZATIONS ==================== */
+  @media (hover: none) and (pointer: coarse) {
+    .btn-action {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-action:active {
+      transform: scale(0.98);
+    }
+  }
+
+  /* ==================== REDUCED MOTION ==================== */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+
+<div class="delete-container">
+  <div class="card delete-card">
+    <!-- Header -->
+    <div class="delete-header">
+      <h5 class="delete-title">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Confirm Deletion</span>
+      </h5>
     </div>
-    <div class="card-body text-center">
-      <p class="fs-5 mb-4">Are you sure you want to delete <strong>{{ object.name }}</strong>?</p>
-      <form method="post">
+
+    <!-- Body -->
+    <div class="delete-body">
+      <!-- Warning Icon -->
+      <div class="delete-icon">
+        🗑️
+      </div>
+
+      <!-- Message -->
+      <div class="delete-message">
+        Are you sure you want to delete
+        <span class="party-name">{{ party.name }}</span>
+        from the system?
+      </div>
+
+      <!-- Warning Text -->
+      <p class="warning-text">
+        <i class="bi bi-exclamation-circle"></i>
+        This action cannot be undone!
+      </p>
+
+      <!-- Warning Info (if has data) -->
+      {% if party.invoices.count > 0 or party.payments.count > 0 %}
+      <div class="warning-info">
+        <h6><i class="bi bi-info-circle"></i> Warning: This party has associated data</h6>
+        <ul>
+          {% if party.invoices.count > 0 %}
+          <li>{{ party.invoices.count }} invoice(s) will be affected</li>
+          {% endif %}
+          {% if party.payments.count > 0 %}
+          <li>{{ party.payments.count }} payment(s) will be affected</li>
+          {% endif %}
+          <li>All related records may become inaccessible</li>
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Actions -->
+      <form method="post" style="margin: 0;">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger px-4 me-2">Yes, Delete</button>
-        <a href="{% url 'party:party_list' %}" class="btn btn-secondary px-4">Cancel</a>
+        <div class="delete-actions">
+          <button type="submit" class="btn btn-action btn-delete-confirm">
+            <i class="bi bi-trash"></i>
+            <span>Yes, Delete</span>
+          </button>
+          <a href="{% url 'party:party_list' %}" class="btn btn-action btn-cancel">
+            <i class="bi bi-x-circle"></i>
+            <span>Cancel</span>
+          </a>
+        </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+(function() {
+  'use strict';
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Confirm on submit
+    const form = document.querySelector('form');
+    const deleteBtn = form.querySelector('.btn-delete-confirm');
+
+    deleteBtn.addEventListener('click', function(e) {
+      const confirmed = confirm('Final confirmation: Delete {{ party.name }}?');
+      if (!confirmed) {
+        e.preventDefault();
+      }
+    });
+
+    // Keyboard shortcut - Escape to cancel
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        window.location.href = '{% url "party:party_list" %}';
+      }
+    });
+  });
+})();
+</script>
 
 {% endblock %}
