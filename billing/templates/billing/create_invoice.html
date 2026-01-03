@@ -625,6 +625,36 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     .invoice-items-table td {
         padding: 6px;
     }
+       .invoice-items-table {
+        display: none; /* Hide table on mobile */
+    }
+
+    .mobile-item-card {
+        background: rgba(10, 10, 30, 0.9);
+        border: 1px solid rgba(0, 194, 255, 0.3);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .mobile-item-card label {
+        font-size: 0.8rem;
+        color: #00c2ff;
+        font-weight: 600;
+        margin-top: 10px;
+        display: block;
+    }
+
+    .mobile-item-card .form-control,
+    .mobile-item-card .form-select {
+        margin-top: 4px;
+    }
+
+    .mobile-item-card .remove-row-btn {
+        width: 100%;
+        margin-top: 12px;
+    }
 }
 
 @media (max-width: 576px) {
@@ -945,5 +975,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial calculations
     document.querySelectorAll('.item-row').forEach(row => calcTotal(row));
 });
+function renderMobileItemCards() {
+    const container = document.getElementById('mobileItemsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    document.querySelectorAll('.item-row').forEach((row, index) => {
+        const card = document.createElement('div');
+        card.className = 'mobile-item-card';
+
+        card.innerHTML = `
+            <label>Item</label>
+            ${row.querySelector("[name$='-item']").outerHTML}
+
+            <label>New Item</label>
+            ${row.querySelector("[name$='-new_item_name']").outerHTML}
+
+            <label>Quantity</label>
+            ${row.querySelector("[name$='-quantity']").outerHTML}
+
+            <label>Rate (₹)</label>
+            ${row.querySelector("[name$='-rate']").outerHTML}
+
+            <label>GST (₹)</label>
+            ${row.querySelector("[name$='-gst_amount']").outerHTML}
+
+            <label>Discount (₹)</label>
+            ${row.querySelector("[name$='-discount_amount']").outerHTML}
+
+            <label>Total (₹)</label>
+            ${row.querySelector("[name$='-total']").outerHTML}
+
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">
+                <i class="bi bi-trash"></i> Remove Item
+            </button>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
 </script>
 {% endblock %}

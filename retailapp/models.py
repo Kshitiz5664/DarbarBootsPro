@@ -15,7 +15,18 @@ class RetailInvoice(SoftDeleteMixin, models.Model):
     """
     Retail (B2C) invoice: manual customer entry, auto invoice number,
     totals are derived from RetailInvoiceItem and RetailReturn.
+    Enhanced with payment mode tracking and status management.
     """
+
+    # Payment Mode Choices (includes UNPAID as a choice)
+    class PaymentMode(models.TextChoices):
+        UNPAID = 'UNPAID', 'Unpaid'
+        CASH = 'CASH', 'Cash'
+        UPI = 'UPI', 'UPI'
+        CARD = 'CARD', 'Card'
+        ONLINE = 'ONLINE', 'Online Banking'
+        CHEQUE = 'CHEQUE', 'Cheque'
+        OTHER = 'OTHER', 'Other'
 
     invoice_number = models.CharField(max_length=50, unique=True, editable=False)
 
@@ -30,7 +41,27 @@ class RetailInvoice(SoftDeleteMixin, models.Model):
     total_discount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     final_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
 
-    is_paid = models.BooleanField(default=False)
+    # Single payment field - if UNPAID then is_paid=False, else is_paid=True
+    payment_mode = models.CharField(
+        max_length=10,
+        choices=PaymentMode.choices,
+        default=PaymentMode.UNPAID,
+        help_text="Select payment method (Unpaid or payment mode)"
+    )
+    
+    payment_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Date when payment was completed"
+    )
+    
+    transaction_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Transaction ID/Reference number for online payments"
+    )
+
     notes = models.TextField(blank=True, null=True)
 
     # Audit
@@ -45,9 +76,68 @@ class RetailInvoice(SoftDeleteMixin, models.Model):
 
     class Meta:
         ordering = ["-date", "-invoice_number"]
+        verbose_name = "Retail Invoice"
+        verbose_name_plural = "Retail Invoices"
 
     def __str__(self):
         return f"Retail Invoice {self.invoice_number}"
+
+    # -------------------------
+    # COMPUTED PROPERTY: is_paid (backward compatibility)
+    # -------------------------
+    @property
+    def is_paid(self):
+        """
+        Computed property: invoice is paid if payment_mode is NOT 'UNPAID'
+        This maintains backward compatibility with existing code.
+        """
+        return self.payment_mode != self.PaymentMode.UNPAID
+    
+    # -------------------------
+    # HELPER METHOD: Mark as Unpaid
+    # -------------------------
+    def mark_as_unpaid(self, clear_details=True):
+        """
+        Helper method to mark invoice as unpaid.
+        Useful for correcting accidental payment mode selection.
+        
+        Args:
+            clear_details: If True, clears payment_date and transaction_reference
+        """
+        self.payment_mode = self.PaymentMode.UNPAID
+        if clear_details:
+            self.payment_date = None
+            self.transaction_reference = None
+        self.save()
+    
+    # -------------------------
+    # HELPER METHOD: Update Payment
+    # -------------------------
+    def update_payment(self, payment_mode, transaction_ref=None):
+        """
+        Helper method to update payment details safely.
+        
+        Args:
+            payment_mode: One of PaymentMode choices
+            transaction_ref: Optional transaction reference
+        """
+        if payment_mode not in dict(self.PaymentMode.choices):
+            raise ValidationError(f"Invalid payment mode: {payment_mode}")
+        
+        self.payment_mode = payment_mode
+        
+        if payment_mode == self.PaymentMode.UNPAID:
+            # Mark as unpaid
+            self.payment_date = None
+            self.transaction_reference = None
+        else:
+            # Mark as paid
+            if not self.payment_date:
+                self.payment_date = timezone.now()
+            if transaction_ref:
+                self.transaction_reference = transaction_ref
+        
+        self.save()
 
     # -------------------------
     # ATOMIC, RACE-SAFE INVOICE NUMBER
@@ -78,10 +168,31 @@ class RetailInvoice(SoftDeleteMixin, models.Model):
 
             return f"{prefix}{seq:03d}"
 
+    def clean(self):
+        """
+        Validation rules:
+        - If payment_mode is UNPAID, clear payment details
+        - If payment_mode is not UNPAID, auto-set payment date if missing
+        """
+        super().clean()
+        
+        # If UNPAID, clear payment-related fields
+        if self.payment_mode == self.PaymentMode.UNPAID:
+            self.payment_date = None
+            self.transaction_reference = None
+        
+        # If any payment mode selected (not UNPAID), auto-set payment date
+        elif not self.payment_date:
+            self.payment_date = timezone.now()
+
     def save(self, *args, **kwargs):
         # Ensure invoice_number set atomically on first save
         if not self.invoice_number:
             self.invoice_number = RetailInvoice.generate_invoice_number()
+        
+        # Run validations
+        self.full_clean()
+        
         super().save(*args, **kwargs)
 
     # -------------------------
@@ -108,12 +219,11 @@ class RetailInvoice(SoftDeleteMixin, models.Model):
         self.total_gst = Decimal(gst).quantize(Decimal("0.01"))
         self.total_discount = Decimal(discount).quantize(Decimal("0.01"))
         self.final_amount = Decimal(max(final, Decimal("0.00"))).quantize(Decimal("0.01"))
-        self.is_paid = (self.final_amount <= Decimal("0.00"))
 
         # Update fields to avoid clobbering other changes
         self.save(update_fields=[
             "base_amount", "total_gst", "total_discount",
-            "final_amount", "is_paid", "updated_at"
+            "final_amount", "updated_at"
         ])
 
 
@@ -163,7 +273,7 @@ class RetailInvoiceItem(SoftDeleteMixin, models.Model):
         """
         Business validations:
         - rate must be non-negative
-        - if linked to an Item and manual_item_name provided, that's allowed (manual overrides name only)
+        - quantity must be positive
         """
         if self.rate is None or Decimal(self.rate) < 0:
             raise ValidationError({"rate": "Rate must be a non-negative number."})

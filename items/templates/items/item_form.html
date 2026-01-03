@@ -135,6 +135,21 @@
         margin: 0;
       }
 
+      /* ==================== HNS CODE DISPLAY ==================== */
+      .hns-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0, 194, 255, 0.2);
+        color: var(--color-primary);
+        padding: 8px 18px;
+        border-radius: var(--border-radius-lg);
+        font-size: 0.95rem;
+        font-weight: 600;
+        border: 1px solid rgba(0, 194, 255, 0.3);
+        margin-top: 10px;
+      }
+
       /* ==================== ALERT MESSAGES ==================== */
       .alert-container {
         padding: var(--spacing-lg) var(--spacing-xxl) 0 var(--spacing-xxl);
@@ -273,37 +288,76 @@
         border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
       }
 
-      /* ==================== CHECKBOXES ==================== */
-      .form-check {
-        padding-left: 0;
+      /* ==================== TOGGLE SWITCHES (ENHANCED) ==================== */
+      .toggle-wrapper {
         display: flex;
         align-items: center;
-        gap: var(--spacing-md);
+        gap: 15px;
+        padding: 12px 0;
       }
 
-      .form-check-input {
-        background-color: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 255, 255, 0.3);
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 56px;
+        height: 30px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
         cursor: pointer;
-        width: 22px;
-        height: 22px;
-        margin: 0;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.15);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        transition: 0.3s;
+        border-radius: 30px;
       }
 
-      .form-check-input:checked {
-        background-color: var(--color-primary);
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 2px;
+        bottom: 2px;
+        background-color: #fff;
+        transition: 0.3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      }
+
+      .toggle-switch input:checked + .toggle-slider {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
         border-color: var(--color-primary);
       }
 
-      .form-check-input:focus {
+      .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+      }
+
+      .toggle-switch input:focus + .toggle-slider {
         box-shadow: 0 0 0 0.2rem rgba(0, 194, 255, 0.25);
       }
 
-      .form-check-label {
+      .toggle-label {
         color: var(--color-text-dark);
-        cursor: pointer;
         font-size: clamp(0.9rem, 2vw, 0.95rem);
-        margin: 0;
+        font-weight: 500;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .toggle-switch input:checked ~ .toggle-label {
+        color: var(--color-primary);
       }
 
       /* ==================== HELP TEXT ==================== */
@@ -426,6 +480,17 @@
           width: 100%;
           justify-content: center;
         }
+
+        .form-title {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .toggle-wrapper {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
       }
 
       @media (max-width: 480px) {
@@ -437,18 +502,28 @@
           font-size: 1rem;
           padding: 12px 25px;
         }
+
+        .input-group-text {
+          padding: 13px 12px;
+          font-size: 0.9rem;
+        }
       }
 
       /* ==================== TOUCH OPTIMIZATIONS ==================== */
       @media (hover: none) and (pointer: coarse) {
         .btn-custom,
         .form-control,
-        .form-check-input {
+        .toggle-switch {
           -webkit-tap-highlight-color: transparent;
         }
 
         .btn-custom:active {
           transform: scale(0.98);
+        }
+
+        .form-control,
+        .form-select {
+          font-size: 16px; /* Prevents iOS zoom on focus */
         }
       }
 
@@ -475,6 +550,12 @@
             <span>{{ action }} Item</span>
           </h2>
           <p class="form-subtitle">Manage your inventory items</p>
+          {% if action == 'Edit' and hns_code %}
+          <div class="hns-badge">
+            <i class="bi bi-upc-scan"></i>
+            <span>HNS: {{ hns_code }}</span>
+          </div>
+          {% endif %}
         </div>
 
         <!-- Messages -->
@@ -502,6 +583,31 @@
 
             <div class="row g-3">
               {% for field in form %}
+              
+              {% if field.name == 'is_active' or field.name == 'is_featured' %}
+              <!-- Toggle Switches for Boolean Fields -->
+              <div class="col-12">
+                <div class="toggle-wrapper">
+                  <label class="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      id="{{ field.id_for_label }}" 
+                      name="{{ field.name }}"
+                      {% if field.value %}checked{% endif %}
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <label for="{{ field.id_for_label }}" class="toggle-label">
+                    <strong>{{ field.label }}</strong>
+                    {% if field.help_text %}
+                    <span class="form-text d-block">{{ field.help_text }}</span>
+                    {% endif %}
+                  </label>
+                </div>
+              </div>
+
+              {% else %}
+              <!-- Regular Fields -->
               <div class="{% if field.name == 'description' %}col-12{% else %}col-md-6{% endif %}">
                 <div class="form-group">
                   <label for="{{ field.id_for_label }}" class="form-label">
@@ -512,27 +618,18 @@
                   </label>
 
                   {% if 'price' in field.name or 'cost' in field.name %}
+                  <!-- Price fields with currency symbol -->
                   <div class="input-group">
                     <span class="input-group-text">₹</span>
                     {{ field }}
                   </div>
 
-                  {% elif field.name == "hns_code" %}
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="{{ field.id_for_label }}"
-                    name="{{ field.name }}"
-                    value="{% if field.value %}{{ field.value }}{% else %}Auto-generated on save{% endif %}"
-                    disabled
-                    aria-label="HNS Code"
-                  />
-
                   {% else %}
+                  <!-- Regular field -->
                   {{ field }}
                   {% endif %}
 
-                  {% if field.help_text %}
+                  {% if field.help_text and field.name != 'is_active' and field.name != 'is_featured' %}
                   <small class="form-text">{{ field.help_text }}</small>
                   {% endif %}
 
@@ -543,6 +640,8 @@
                   {% endif %}
                 </div>
               </div>
+              {% endif %}
+
               {% endfor %}
             </div>
           </div>
@@ -584,17 +683,8 @@
             });
           }
 
-          // Handle auto-generated HNS code display
-          const hnsField = document.querySelector('input[name="hns_code"]');
-          if (hnsField) {
-            if (!hnsField.value || hnsField.value.trim() === "") {
-              hnsField.value = "Auto-generated on save";
-            }
-            hnsField.disabled = true;
-          }
-
-          // Auto-focus first input
-          const firstInput = form.querySelector('input:not([type="hidden"]):not([disabled]), select, textarea');
+          // Auto-focus first input (skip hidden and disabled)
+          const firstInput = form.querySelector('input:not([type="hidden"]):not([type="checkbox"]):not([disabled]), select, textarea');
           if (firstInput) {
             setTimeout(function() {
               firstInput.focus();
@@ -611,27 +701,39 @@
             });
           });
 
-          // Add animation to form controls on focus
-          const formControls = document.querySelectorAll(".form-control, .form-select");
-          formControls.forEach(function(control) {
-            control.addEventListener("focus", function () {
-              if (this.parentElement) {
-                this.parentElement.style.transform = "scale(1.01)";
-                this.parentElement.style.transition = "transform 0.2s ease";
-              }
-            });
+          // Smooth scroll to first error
+          const firstError = document.querySelector(".is-invalid, .invalid-feedback");
+          if (firstError) {
+            setTimeout(function() {
+              firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 200);
+          }
 
-            control.addEventListener("blur", function () {
-              if (this.parentElement) {
-                this.parentElement.style.transform = "scale(1)";
+          // Add visual feedback for toggle switches
+          const toggles = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
+          toggles.forEach(function(toggle) {
+            toggle.addEventListener('change', function() {
+              const wrapper = this.closest('.toggle-wrapper');
+              if (wrapper) {
+                wrapper.style.transform = 'scale(1.02)';
+                setTimeout(function() {
+                  wrapper.style.transform = 'scale(1)';
+                }, 150);
               }
             });
           });
 
-          // Smooth scroll to first error
-          const firstError = document.querySelector(".is-invalid, .invalid-feedback");
-          if (firstError) {
-            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Optimize image field for mobile
+          const imageInput = form.querySelector('input[type="file"]');
+          if (imageInput) {
+            imageInput.addEventListener('change', function() {
+              const fileName = this.files[0]?.name || 'No file chosen';
+              const label = this.closest('.form-group')?.querySelector('.form-text');
+              if (label) {
+                label.textContent = 'Selected: ' + fileName;
+                label.style.color = 'var(--color-primary)';
+              }
+            });
           }
         });
       })();

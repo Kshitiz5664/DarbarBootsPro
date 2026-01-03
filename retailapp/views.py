@@ -23,7 +23,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from datetime import datetime, timedelta
 
 from .models import RetailInvoice, RetailInvoiceItem, RetailReturn
-from .forms import RetailInvoiceForm, RetailReturnForm
+from .forms import RetailInvoiceForm, RetailReturnForm, RetailInvoiceQuickPaymentForm
 from items.models import Item
 
 logger = logging.getLogger(__name__)
@@ -75,8 +75,8 @@ def get_dashboard_stats():
     total_stats = active_invoices.aggregate(
         total_count=Count('id'),
         total_revenue=Sum('final_amount'),
-        paid_count=Count('id', filter=Q(is_paid=True)),
-        unpaid_count=Count('id', filter=Q(is_paid=False)),
+        paid_count=Count('id', filter=~Q(payment_mode='UNPAID')),
+        unpaid_count=Count('id', filter=Q(payment_mode='UNPAID')),
     )
     
     today_stats = active_invoices.filter(date=today).aggregate(
@@ -226,14 +226,18 @@ def generate_retail_invoice_pdf(invoice):
     elements.append(Paragraph("RETAIL INVOICE", title_style))
     elements.append(Spacer(1, 0.3 * inch))
     
-    # Invoice Info Table
-    payment_status = 'PAID' if invoice.is_paid else 'PENDING'
+    # Invoice Info Table - Updated with payment mode
+    payment_status = invoice.get_payment_mode_display()  # Shows "Unpaid", "Cash", "UPI", etc.
     invoice_date = invoice.date.strftime('%d %b %Y') if invoice.date else 'N/A'
     
     invoice_info = [
         ['Invoice No:', invoice.invoice_number or 'N/A', 'Date:', invoice_date],
-        ['Status:', payment_status, '', '']
+        ['Payment:', payment_status, '', '']
     ]
+    
+    # Add transaction reference if available
+    if invoice.transaction_reference:
+        invoice_info.append(['Transaction Ref:', invoice.transaction_reference, '', ''])
     
     invoice_table = Table(invoice_info, colWidths=[1.5 * inch, 2.5 * inch, 1 * inch, 1.5 * inch])
     invoice_table.setStyle(TableStyle([
@@ -427,12 +431,12 @@ class RetailDashboardView(ListView):
                 Q(customer_mobile__icontains=search_query)
             )
         
-        # Filter by payment status
+        # Filter by payment status - Updated for payment_mode
         status_filter = self.request.GET.get('status', '').strip()
         if status_filter == 'paid':
-            queryset = queryset.filter(is_paid=True)
+            queryset = queryset.exclude(payment_mode='UNPAID')
         elif status_filter == 'unpaid':
-            queryset = queryset.filter(is_paid=False)
+            queryset = queryset.filter(payment_mode='UNPAID')
         
         # Filter by date range
         date_from = self.request.GET.get('date_from', '').strip()
@@ -491,6 +495,9 @@ class RetailInvoiceDetailView(DetailView):
         context['items_count'] = items.count()
         context['returns_count'] = returns.count()
         
+        # Add quick payment form for easy status updates
+        context['quick_payment_form'] = RetailInvoiceQuickPaymentForm(instance=invoice)
+        
         return context
 
 
@@ -509,7 +516,7 @@ class RetailInvoiceCreateView(View):
         
         context = {
             'form': form,
-            'items': items,  # Match template variable name
+            'items': items,
         }
         return render(request, self.template_name, context)
     
@@ -581,9 +588,11 @@ class RetailInvoiceCreateView(View):
             # Refresh invoice from DB to get updated totals
             invoice.refresh_from_db()
             
+            # Success message with payment status
+            payment_status = invoice.get_payment_mode_display()
             messages.success(
                 request,
-                f'Invoice {invoice.invoice_number} created successfully with {items_created} item(s)!'
+                f'Invoice {invoice.invoice_number} created successfully with {items_created} item(s)! Payment Status: {payment_status}'
             )
             
             # Handle PDF download
@@ -628,8 +637,8 @@ class RetailInvoiceUpdateView(View):
         context = {
             'form': form,
             'invoice': invoice,
-            'items': items,  # Available items for dropdown
-            'invoice_items': invoice_items,  # Existing items on invoice
+            'items': items,
+            'invoice_items': invoice_items,
         }
         return render(request, self.template_name, context)
     
@@ -688,9 +697,10 @@ class RetailInvoiceUpdateView(View):
             # Force recalculate totals
             invoice.recalculate_totals()
             
+            payment_status = invoice.get_payment_mode_display()
             messages.success(
                 request,
-                f'Invoice {invoice.invoice_number} updated successfully!'
+                f'Invoice {invoice.invoice_number} updated successfully! Payment Status: {payment_status}'
             )
             return redirect('retailapp:invoice_detail', invoice_id=invoice.id)
             
@@ -881,7 +891,10 @@ def ajax_calculate_item_total(request):
 
 @login_required
 def ajax_toggle_payment_status(request, invoice_id):
-    """AJAX endpoint to toggle invoice payment status"""
+    """
+    AJAX endpoint to toggle invoice payment status.
+    Updated to work with payment_mode instead of is_paid boolean.
+    """
     if request.method != 'POST':
         return JsonResponse({
             'success': False,
@@ -891,15 +904,25 @@ def ajax_toggle_payment_status(request, invoice_id):
     try:
         invoice = get_object_or_404(RetailInvoice, id=invoice_id, is_active=True)
         
-        invoice.is_paid = not invoice.is_paid
+        # Toggle logic: if UNPAID, set to CASH; if paid (any other mode), set to UNPAID
+        if invoice.payment_mode == RetailInvoice.PaymentMode.UNPAID:
+            # Mark as paid with default CASH
+            invoice.payment_mode = RetailInvoice.PaymentMode.CASH
+            status_text = 'Paid (Cash)'
+        else:
+            # Mark as unpaid
+            invoice.payment_mode = RetailInvoice.PaymentMode.UNPAID
+            status_text = 'Unpaid'
+        
         invoice.updated_by = request.user
-        invoice.save(update_fields=['is_paid', 'updated_by', 'updated_at'])
+        invoice.save()
         
         return JsonResponse({
             'success': True,
-            'is_paid': invoice.is_paid,
-            'status_text': 'Paid' if invoice.is_paid else 'Pending',
-            'message': f'Invoice marked as {"Paid" if invoice.is_paid else "Pending"}'
+            'is_paid': invoice.is_paid,  # This uses the @property
+            'payment_mode': invoice.payment_mode,
+            'status_text': status_text,
+            'message': f'Invoice marked as {status_text}'
         })
         
     except Exception as e:
@@ -907,6 +930,59 @@ def ajax_toggle_payment_status(request, invoice_id):
         return JsonResponse({
             'success': False,
             'error': 'Failed to update payment status'
+        }, status=500)
+
+
+@login_required
+def ajax_update_payment_mode(request, invoice_id):
+    """
+    NEW AJAX endpoint to update payment mode with specific value.
+    Allows changing to any payment mode (UNPAID, CASH, UPI, etc.)
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid request method'
+        }, status=405)
+    
+    try:
+        invoice = get_object_or_404(RetailInvoice, id=invoice_id, is_active=True)
+        
+        # Get payment mode from POST data
+        payment_mode = request.POST.get('payment_mode', '').strip()
+        transaction_ref = request.POST.get('transaction_reference', '').strip()
+        
+        # Validate payment mode
+        if payment_mode not in dict(RetailInvoice.PaymentMode.choices):
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid payment mode'
+            }, status=400)
+        
+        # Update payment mode
+        invoice.payment_mode = payment_mode
+        if transaction_ref:
+            invoice.transaction_reference = transaction_ref
+        elif payment_mode == RetailInvoice.PaymentMode.UNPAID:
+            invoice.transaction_reference = ''
+        
+        invoice.updated_by = request.user
+        invoice.save()
+        
+        return JsonResponse({
+            'success': True,
+            'is_paid': invoice.is_paid,
+            'payment_mode': invoice.payment_mode,
+            'payment_mode_display': invoice.get_payment_mode_display(),
+            'transaction_reference': invoice.transaction_reference or '',
+            'message': f'Payment mode updated to {invoice.get_payment_mode_display()}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating payment mode: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to update payment mode'
         }, status=500)
 
 

@@ -32,15 +32,11 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Customer Name <span class="text-danger">*</span></label>
-                            <input type="text" name="customer_name" id="id_customer_name" 
-                                   class="form-control" placeholder="Customer name" required
-                                   value="{{ invoice.customer_name }}">
+                            {{ form.customer_name }}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Mobile Number</label>
-                            <input type="text" name="customer_mobile" id="id_customer_mobile" 
-                                   class="form-control" placeholder="Mobile number (optional)"
-                                   value="{{ invoice.customer_mobile|default:'' }}">
+                            {{ form.customer_mobile }}
                         </div>
                     </div>
                 </div>
@@ -53,21 +49,25 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
-                            <input type="date" name="date" id="id_date" class="form-control"
-                                   value="{{ invoice.date|date:'Y-m-d' }}">
+                            {{ form.date }}
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Payment Status</label>
-                            <div class="form-check form-switch mt-2">
-                                <input type="checkbox" class="form-check-input" id="id_is_paid" name="is_paid"
-                                       {% if invoice.is_paid %}checked{% endif %}>
-                                <label class="form-check-label text-light" for="id_is_paid">Mark as Paid</label>
-                            </div>
+                            <label class="form-label">Payment Status & Method <span class="text-danger">*</span></label>
+                            {{ form.payment_mode }}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Current: {{ invoice.get_payment_mode_display }}
+                            </small>
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label">Transaction Reference</label>
+                            {{ form.transaction_reference }}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> For digital payments
+                            </small>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label">Notes</label>
-                            <textarea name="notes" id="id_notes" class="form-control" rows="1"
-                                      placeholder="Notes (optional)">{{ invoice.notes|default:'' }}</textarea>
+                            {{ form.notes }}
                         </div>
                     </div>
                 </div>
@@ -288,6 +288,11 @@ select.form-select option {
     padding: 12px 8px !important;
 }
 
+.text-muted {
+    color: #b8b8b8 !important;
+    font-size: 0.85rem;
+}
+
 .invoice-items-table { 
     background: rgba(10, 10, 20, 0.6); 
     border: 1px solid rgba(255, 193, 7, 0.25); 
@@ -325,19 +330,6 @@ select.form-select option {
     border: 1px solid rgba(255, 193, 7, 0.25);
     font-size: 14px;
     padding: 8px 12px;
-}
-
-.form-check-input { 
-    cursor: pointer; 
-    border: 1px solid rgba(255, 193, 7, 0.3); 
-    background-color: rgba(255, 255, 255, 0.1);
-    width: 3em;
-    height: 1.5em;
-}
-
-.form-check-input:checked { 
-    background-color: #ffc107; 
-    border-color: #ffc107; 
 }
 
 .btn-outline-info {
@@ -384,10 +376,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const addItemBtn = document.getElementById('addItemBtn');
     const invoiceForm = document.getElementById('invoiceForm');
     const submitBtn = document.getElementById('submitBtn');
+    const paymentModeSelect = document.getElementById('id_payment_mode');
+    const transactionRefInput = document.getElementById('id_transaction_reference');
     
     let rowIndex = {{ invoice_items.count|default:1 }};
     
     const safeFloat = v => parseFloat(v) || 0;
+    
+    // Handle payment mode changes
+    if (paymentModeSelect && transactionRefInput) {
+        paymentModeSelect.addEventListener('change', function() {
+            if (this.value === 'UNPAID') {
+                transactionRefInput.value = '';
+            }
+        });
+    }
     
     function calcItemTotal(row) {
         const qty = safeFloat(row.querySelector('.qty-input')?.value);

@@ -4,8 +4,17 @@ from . import views
 app_name = 'items'
 
 urlpatterns = [
+    # List and create
     path('', views.ItemListView.as_view(), name='item_list'),
     path('add/', views.ItemCreateView.as_view(), name='item_add'),
+    
+    # Detail view
+    path('<int:pk>/', views.ItemDetailView.as_view(), name='item_detail'),
+    
+    # Update and delete
     path('<int:pk>/edit/', views.ItemUpdateView.as_view(), name='item_edit'),
     path('<int:pk>/delete/', views.ItemDeleteView.as_view(), name='item_delete'),
+    
+    # Stock adjustment
+    path('<int:pk>/adjust-stock/', views.StockAdjustmentView.as_view(), name='stock_adjust'),
 ]

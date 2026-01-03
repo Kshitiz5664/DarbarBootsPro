@@ -22,5 +22,6 @@ urlpatterns = [
     path('ajax/item/<int:item_id>/', views.ajax_get_item_details, name='ajax_item_details'),
     path('ajax/calculate/', views.ajax_calculate_item_total, name='ajax_calculate_total'),
     path('ajax/toggle-payment/<int:invoice_id>/', views.ajax_toggle_payment_status, name='ajax_toggle_payment'),
+    path('ajax/update-payment-mode/<int:invoice_id>/', views.ajax_update_payment_mode, name='ajax_update_payment_mode'),
     path('ajax/search-items/', views.ajax_search_items, name='ajax_search_items'),
 ]

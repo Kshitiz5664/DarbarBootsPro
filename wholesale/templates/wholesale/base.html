@@ -52,6 +52,12 @@
       font-weight: 700;
       letter-spacing: 0.5px;
       font-size: clamp(1.1rem, 3vw, 1.25rem);
+      transition: var(--transition-default);
+    }
+
+    .navbar-brand:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
     }
 
     .nav-link {
@@ -63,6 +69,11 @@
 
     .nav-link:hover {
       opacity: 0.8;
+    }
+
+    .nav-link.active {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
     }
 
     .dropdown-menu {
@@ -79,6 +90,11 @@
 
     .dropdown-item:hover {
       background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .dropdown-item.active {
+      background-color: rgba(13, 110, 253, 0.1);
+      color: #0d6efd;
     }
 
     /* ==================== MODE SWITCHER ==================== */
@@ -114,6 +130,22 @@
 
     .mode-btn:hover:not(.active) {
       color: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Hide retail/wholesale specific nav items */
+    .wholesale-only,
+    .retail-only {
+      display: none;
+    }
+
+    /* Show items based on active mode */
+    body[data-mode="wholesale"] .wholesale-only {
+      display: block;
+    }
+
+    body[data-mode="retail"] .retail-only {
+      display: block;
     }
 
     /* ==================== MAIN CONTENT ==================== */
@@ -183,12 +215,13 @@
     }
   </style>
 </head>
-<body>
+<body data-mode="wholesale">
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
-      <a class="navbar-brand text-uppercase" href="{% url 'wholesale:dashboard_home' %}">
-        DarbarBootsPro
+      <!-- Logo - Always links to Greeting Page -->
+      <a class="navbar-brand text-uppercase" href="{% url 'core:greeting' %}">
+        <i class="bi bi-bootstrap-fill"></i> DarbarBootHouses
       </a>
       
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Toggle navigation">
@@ -197,94 +230,178 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
-          <!-- Dashboard -->
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'wholesale:dashboard_home' %}">
+          
+          <!-- ==================== WHOLESALE NAVIGATION ==================== -->
+          
+          <!-- Wholesale Dashboard -->
+          <li class="nav-item wholesale-only">
+            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard_home' %}active{% endif %}" 
+               href="{% url 'wholesale:dashboard_home' %}">
               <i class="bi bi-speedometer2"></i>
               <span class="d-lg-inline">Dashboard</span>
             </a>
           </li>
 
-          <!-- Party Management -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="partyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <!-- Party Management (Wholesale Only) -->
+          <li class="nav-item dropdown wholesale-only">
+            <a class="nav-link dropdown-toggle {% if request.resolver_match.app_name == 'party' %}active{% endif %}" 
+               href="#" id="partyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-people"></i>
               <span>Parties</span>
             </a>
             <ul class="dropdown-menu" aria-labelledby="partyDropdown">
-              <li><a class="dropdown-item" href="{% url 'party:party_list' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'party_list' %}active{% endif %}" 
+                     href="{% url 'party:party_list' %}">
                 <i class="bi bi-list-ul"></i> All Parties
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'party:party_create' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'party_create' %}active{% endif %}" 
+                     href="{% url 'party:party_create' %}">
                 <i class="bi bi-plus-circle"></i> Add Party
               </a></li>
             </ul>
           </li>
 
-          <!-- Items Management -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="itemsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <!-- Items Management (Wholesale) -->
+          <li class="nav-item dropdown wholesale-only">
+            <a class="nav-link dropdown-toggle {% if request.resolver_match.app_name == 'items' %}active{% endif %}" 
+               href="#" id="itemsDropdownWholesale" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-box-seam"></i>
               <span>Items</span>
             </a>
-            <ul class="dropdown-menu" aria-labelledby="itemsDropdown">
-              <li><a class="dropdown-item" href="{% url 'items:item_list' %}">
+            <ul class="dropdown-menu" aria-labelledby="itemsDropdownWholesale">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'item_list' %}active{% endif %}" 
+                     href="{% url 'items:item_list' %}">
                 <i class="bi bi-grid"></i> All Items
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'items:item_add' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'item_add' %}active{% endif %}" 
+                     href="{% url 'items:item_add' %}">
                 <i class="bi bi-plus-square"></i> Add Item
               </a></li>
             </ul>
           </li>
 
-          <!-- Billing Section -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="billingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <!-- Billing Section (Wholesale) -->
+          <li class="nav-item dropdown wholesale-only">
+            <a class="nav-link dropdown-toggle {% if request.resolver_match.app_name == 'billing' %}active{% endif %}" 
+               href="#" id="billingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-receipt"></i>
               <span>Billing</span>
             </a>
             <ul class="dropdown-menu" aria-labelledby="billingDropdown">
-              <li><a class="dropdown-item" href="{% url 'billing:invoice_list' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'invoice_list' %}active{% endif %}" 
+                     href="{% url 'billing:invoice_list' %}">
                 <i class="bi bi-file-earmark-text"></i> Invoices
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'billing:payment_list' %}">
-                <i class="bi bi-cash-stack"></i> Payments
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'invoice_create' %}active{% endif %}" 
+                     href="{% url 'billing:invoice_create' %}">
+                <i class="bi bi-file-earmark-plus"></i> Create Invoice
               </a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{% url 'billing:return_create' %}">
-                <i class="bi bi-arrow-return-left"></i> Create Return
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" 
+                     href="{% url 'billing:payment_list' %}">
+                <i class="bi bi-cash-stack"></i> Payments
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'billing:challan_list' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'payment_create' %}active{% endif %}" 
+                     href="{% url 'billing:payment_create' %}">
+                <i class="bi bi-cash-coin"></i> Record Payment
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'return_list' %}active{% endif %}" 
+                     href="{% url 'billing:return_list' %}">
+                <i class="bi bi-arrow-return-left"></i> Returns
+              </a></li>
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'return_create' %}active{% endif %}" 
+                     href="{% url 'billing:return_create' %}">
+                <i class="bi bi-arrow-90deg-left"></i> Create Return
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'challan_list' %}active{% endif %}" 
+                     href="{% url 'billing:challan_list' %}">
                 <i class="bi bi-clipboard-check"></i> Challan List
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'billing:challan_create' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'challan_create' %}active{% endif %}" 
+                     href="{% url 'billing:challan_create' %}">
                 <i class="bi bi-clipboard-plus"></i> Create Challan
               </a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{% url 'billing:manage_balance' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'manage_balance' %}active{% endif %}" 
+                     href="{% url 'billing:manage_balance' %}">
                 <i class="bi bi-calculator"></i> Manage Balances
               </a></li>
             </ul>
           </li>
 
-          <!-- Analytics & Reports -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="reportDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <!-- Analytics & Reports (Wholesale) -->
+          <li class="nav-item dropdown wholesale-only">
+            <a class="nav-link dropdown-toggle" 
+               href="#" id="reportDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-graph-up"></i>
               <span>Reports</span>
             </a>
             <ul class="dropdown-menu" aria-labelledby="reportDropdown">
-              <li><a class="dropdown-item" href="{% url 'wholesale:analytics_report' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'analytics_report' %}active{% endif %}" 
+                     href="{% url 'wholesale:analytics_report' %}">
                 <i class="bi bi-bar-chart"></i> Analytics
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'wholesale:pending_invoices_report' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'pending_invoices_report' %}active{% endif %}" 
+                     href="{% url 'wholesale:pending_invoices_report' %}">
                 <i class="bi bi-hourglass-split"></i> Pending Invoices
               </a></li>
-              <li><a class="dropdown-item" href="{% url 'wholesale:payment_history_report' %}">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'payment_history_report' %}active{% endif %}" 
+                     href="{% url 'wholesale:payment_history_report' %}">
                 <i class="bi bi-clock-history"></i> Payment History
               </a></li>
             </ul>
           </li>
+
+          <!-- ==================== RETAIL NAVIGATION ==================== -->
+          
+          <!-- Retail Dashboard -->
+          <li class="nav-item retail-only">
+            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.app_name == 'retailapp' %}active{% endif %}" 
+               href="{% url 'retailapp:dashboard' %}">
+              <i class="bi bi-speedometer2"></i>
+              <span class="d-lg-inline">Dashboard</span>
+            </a>
+          </li>
+
+          <!-- Retail Items -->
+          <li class="nav-item dropdown retail-only">
+            <a class="nav-link dropdown-toggle" 
+               href="#" id="itemsDropdownRetail" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-box-seam"></i>
+              <span>Items</span>
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="itemsDropdownRetail">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'item_list' %}active{% endif %}" 
+                     href="{% url 'items:item_list' %}">
+                <i class="bi bi-grid"></i> All Items
+              </a></li>
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'item_add' %}active{% endif %}" 
+                     href="{% url 'items:item_add' %}">
+                <i class="bi bi-plus-square"></i> Add Item
+              </a></li>
+            </ul>
+          </li>
+
+          <!-- Retail Invoices -->
+          <li class="nav-item dropdown retail-only">
+            <a class="nav-link dropdown-toggle {% if request.resolver_match.app_name == 'retailapp' and 'invoice' in request.resolver_match.url_name %}active{% endif %}" 
+               href="#" id="retailInvoiceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-receipt"></i>
+              <span>Sales</span>
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="retailInvoiceDropdown">
+              <li><a class="dropdown-item {% if request.resolver_match.url_name == 'invoice_create' %}active{% endif %}" 
+                     href="{% url 'retailapp:invoice_create' %}">
+                <i class="bi bi-plus-circle"></i> New Sale
+              </a></li>
+              <li><a class="dropdown-item" href="{% url 'retailapp:dashboard' %}">
+                <i class="bi bi-list-ul"></i> View Sales
+              </a></li>
+            </ul>
+          </li>
+
         </ul>
 
         <!-- Mode Switcher & Logout -->
@@ -323,27 +440,59 @@
     (function() {
       'use strict';
 
-      // Mode Switcher
+      // Detect current mode from URL
+      function detectCurrentMode() {
+        const path = window.location.pathname;
+        if (path.includes('/retail')) {
+          return 'retail';
+        }
+        return 'wholesale'; // default
+      }
+
+      // Initialize mode on page load
+      function initializeMode() {
+        const currentMode = detectCurrentMode();
+        const body = document.body;
+        const wholesaleBtn = document.getElementById('wholesaleBtn');
+        const retailBtn = document.getElementById('retailBtn');
+
+        if (currentMode === 'retail') {
+          body.setAttribute('data-mode', 'retail');
+          wholesaleBtn.classList.remove('active');
+          retailBtn.classList.add('active');
+        } else {
+          body.setAttribute('data-mode', 'wholesale');
+          wholesaleBtn.classList.add('active');
+          retailBtn.classList.remove('active');
+        }
+      }
+
+      // Mode Switcher Function
       function switchMode(mode) {
+        const body = document.body;
         const wholesaleBtn = document.getElementById('wholesaleBtn');
         const retailBtn = document.getElementById('retailBtn');
 
         if (mode === 'wholesale') {
+          body.setAttribute('data-mode', 'wholesale');
           wholesaleBtn.classList.add('active');
           retailBtn.classList.remove('active');
           // Redirect to wholesale dashboard
           window.location.href = "{% url 'wholesale:dashboard_home' %}";
-        } else {
+        } else if (mode === 'retail') {
+          body.setAttribute('data-mode', 'retail');
           retailBtn.classList.add('active');
           wholesaleBtn.classList.remove('active');
-          // Redirect to retail dashboard (update this URL when retail is ready)
-          alert('Retail mode coming soon!');
-          // window.location.href = "/retail/dashboard/";
+          // Redirect to retail dashboard
+          window.location.href = "{% url 'retailapp:dashboard' %}";
         }
       }
 
       // Make switchMode available globally
       window.switchMode = switchMode;
+
+      // Initialize on page load
+      initializeMode();
 
       // Auto-close navbar on mobile after clicking a link
       const navLinks = document.querySelectorAll('.navbar-nav .nav-link:not(.dropdown-toggle)');
