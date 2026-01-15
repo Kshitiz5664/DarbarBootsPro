@@ -10,15 +10,13 @@ from django.core.exceptions import ValidationError
 from core.mixins import SoftDeleteMixin
 from items.models import Item
 from party.models import Party
-from decimal import Decimal, ROUND_HALF_UP
-from django.utils import timezone
 
 
 # -----------------------
 # Invoice
 # -----------------------
 class Invoice(SoftDeleteMixin, models.Model):
-    invoice_number = models.CharField(max_length=50, unique=True)
+    invoice_number = models.CharField(max_length=50, unique=True)  # ✅ Already has business number
     party = models.ForeignKey(Party, on_delete=models.CASCADE, related_name='invoices')
     date = models.DateField()
 
@@ -50,10 +48,6 @@ class Invoice(SoftDeleteMixin, models.Model):
     def __str__(self):
         return f"Invoice {self.invoice_number}"
 
-    # -----------------------
-    # Computed Properties
-    # -----------------------
-
     @property
     def total_return(self):
         total = self.returns.filter(is_active=True).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
@@ -76,9 +70,6 @@ class Invoice(SoftDeleteMixin, models.Model):
         balance = self.total_amount - self.total_paid
         return Decimal(max(balance, 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    # -----------------------
-    # Utility Functions
-    # -----------------------
     def recalculate_base_amount(self):
         """Recalculate the base amount using all active InvoiceItems."""
         total = self.invoice_items.filter(is_active=True).aggregate(total=models.Sum('total'))['total'] or Decimal('0.00')
@@ -86,6 +77,10 @@ class Invoice(SoftDeleteMixin, models.Model):
         self.is_paid = self.total_paid >= self.base_amount
         self.updated_at = timezone.now()
         self.save(update_fields=['base_amount', 'is_paid', 'updated_at'])
+
+    def hard_delete(self):
+        """Permanently delete the invoice (bypass soft delete)."""
+        super(Invoice, self).delete()
 
 
 # -----------------------
@@ -116,9 +111,6 @@ class InvoiceItem(SoftDeleteMixin, models.Model):
     def __str__(self):
         return f"{self.item.name if self.item else 'Unknown Item'} ({self.quantity})"
 
-    # -----------------------
-    # Save Override
-    # -----------------------
     def save(self, *args, **kwargs):
         quantity = Decimal(self.quantity or 0)
         rate = Decimal(self.rate or Decimal('0.00'))
@@ -127,9 +119,6 @@ class InvoiceItem(SoftDeleteMixin, models.Model):
         self.total = (quantity * rate + gst - discount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         super().save(*args, **kwargs)
 
-    # -----------------------
-    # Display Helper
-    # -----------------------
     def display_name(self):
         """Generate a human-readable display name combining invoice & item info."""
         invoice_num = self.invoice.invoice_number if self.invoice else 'NoInvoice'
@@ -137,11 +126,23 @@ class InvoiceItem(SoftDeleteMixin, models.Model):
         date_text = self.invoice.date.strftime('%d-%b-%Y') if (self.invoice and self.invoice.date) else 'No Date'
         return f"{invoice_num} | {party_name} | {date_text} | ₹{self.total:.2f}"
 
+    def hard_delete(self):
+        """Permanently delete the invoice item (bypass soft delete)."""
+        super(InvoiceItem, self).delete()
+
 
 # -----------------------
 # Payment
 # -----------------------
 class Payment(SoftDeleteMixin, models.Model):
+    # ✅ NEW: Auto-generated business number
+    payment_number = models.CharField(
+        max_length=50, 
+        unique=True, 
+        editable=False,
+        help_text="Auto-generated payment reference number"
+    )
+    
     PAYMENT_MODES = [
         ('cash', 'Cash'),
         ('upi', 'UPI'),
@@ -166,18 +167,59 @@ class Payment(SoftDeleteMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-date']
+        ordering = ['-date', '-payment_number']
         verbose_name = "Payment"
         verbose_name_plural = "Payments"
 
     def __str__(self):
-        return f"Payment ₹{self.amount} - {self.party.name}"
+        return f"Payment {self.payment_number} - ₹{self.amount} - {self.party.name}"
+
+    # ✅ NEW: Auto-generate payment number
+    @staticmethod
+    def generate_payment_number():
+        """Generate unique payment number in format: PAY-YYYYMM-0001"""
+        today = timezone.now()
+        year_month = today.strftime('%Y%m')
+        prefix = f"PAY-{year_month}-"
+        
+        last_payment = Payment.objects.filter(
+            payment_number__startswith=prefix
+        ).order_by('-payment_number').first()
+        
+        if last_payment:
+            try:
+                last_number = int(last_payment.payment_number.split('-')[-1])
+                new_number = last_number + 1
+            except (ValueError, IndexError):
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"{prefix}{new_number:04d}"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate payment number if not set
+        if not self.payment_number:
+            self.payment_number = self.generate_payment_number()
+        super().save(*args, **kwargs)
+
+    def hard_delete(self):
+        """Permanently delete the payment (bypass soft delete)."""
+        super(Payment, self).delete()
 
 
 # -----------------------
 # Return
 # -----------------------
 class Return(SoftDeleteMixin, models.Model):
+    # ✅ NEW: Auto-generated business number
+    return_number = models.CharField(
+        max_length=50, 
+        unique=True, 
+        editable=False,
+        help_text="Auto-generated return reference number"
+    )
+    
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='returns')
     party = models.ForeignKey(Party, on_delete=models.CASCADE, related_name='returns')
     return_date = models.DateField()
@@ -195,19 +237,190 @@ class Return(SoftDeleteMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-return_date']
+        ordering = ['-return_date', '-return_number']
         verbose_name = "Return"
         verbose_name_plural = "Returns"
 
     def __str__(self):
-        return f"Return #{self.id} - {self.invoice.invoice_number}"
+        return f"Return {self.return_number} - {self.invoice.invoice_number}"
+
+    # ✅ NEW: Auto-generate return number
+    @staticmethod
+    def generate_return_number():
+        """Generate unique return number in format: RET-YYYYMM-0001"""
+        today = timezone.now()
+        year_month = today.strftime('%Y%m')
+        prefix = f"RET-{year_month}-"
+        
+        last_return = Return.objects.filter(
+            return_number__startswith=prefix
+        ).order_by('-return_number').first()
+        
+        if last_return:
+            try:
+                last_number = int(last_return.return_number.split('-')[-1])
+                new_number = last_number + 1
+            except (ValueError, IndexError):
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"{prefix}{new_number:04d}"
+
+    def get_items_for_stock_restoration(self):
+        """
+        Extract invoice items that need stock restoration.
+        Returns list of dicts: [{'item_id': int, 'quantity': int}, ...]
+        """
+        if hasattr(self, 'return_items') and self.return_items.filter(is_active=True).exists():
+            items_to_restore = []
+            for return_item in self.return_items.filter(is_active=True):
+                if return_item.invoice_item.item:
+                    items_to_restore.append({
+                        'item_id': return_item.invoice_item.item.id,
+                        'quantity': return_item.quantity
+                    })
+            return items_to_restore
+        
+        items_to_restore = []
+        invoice_items = self.invoice.invoice_items.filter(is_active=True)
+        
+        if not invoice_items.exists():
+            return items_to_restore
+        
+        invoice_total = self.invoice.base_amount or Decimal('0.00')
+        if invoice_total <= 0:
+            return items_to_restore
+        
+        return_percentage = self.amount / invoice_total
+        
+        for invoice_item in invoice_items:
+            if invoice_item.item:
+                quantity_to_return = int(invoice_item.quantity * return_percentage)
+                
+                if quantity_to_return == 0 and self.amount > 0:
+                    quantity_to_return = 1
+                
+                if quantity_to_return > 0:
+                    items_to_restore.append({
+                        'item_id': invoice_item.item.id,
+                        'quantity': quantity_to_return
+                    })
+        
+        return items_to_restore
+    
+    def validate_return_amount(self):
+        """Validate that return amount doesn't exceed allowable limit."""
+        if self.amount <= 0:
+            raise ValidationError("Return amount must be greater than zero.")
+        
+        existing_returns = self.invoice.returns.filter(
+            is_active=True
+        ).exclude(pk=self.pk).aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        max_returnable = self.invoice.base_amount - existing_returns
+        
+        if self.amount > max_returnable:
+            raise ValidationError(
+                f"Return amount ₹{self.amount} exceeds maximum returnable "
+                f"amount ₹{max_returnable:.2f}. "
+                f"(Invoice Total: ₹{self.invoice.base_amount}, "
+                f"Already Returned: ₹{existing_returns})"
+            )
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate return number if not set
+        if not self.return_number:
+            self.return_number = self.generate_return_number()
+        
+        # Validate before saving (only for new returns)
+        if not self.pk:
+            self.validate_return_amount()
+        
+        super().save(*args, **kwargs)
+
+    def hard_delete(self):
+        """Permanently delete the return (bypass soft delete)."""
+        super(Return, self).delete()
+
+
+# -----------------------
+# ReturnItem (Optional - Future Enhancement)
+# -----------------------
+class ReturnItem(SoftDeleteMixin, models.Model):
+    """Track specific items and quantities being returned"""
+    return_instance = models.ForeignKey(
+        Return, 
+        on_delete=models.CASCADE, 
+        related_name='return_items'
+    )
+    invoice_item = models.ForeignKey(
+        InvoiceItem, 
+        on_delete=models.CASCADE,
+        related_name='return_items'
+    )
+    quantity = models.PositiveIntegerField()
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='returnitems_created'
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='returnitems_updated'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Return Item"
+        verbose_name_plural = "Return Items"
+    
+    def __str__(self):
+        item_name = self.invoice_item.item.name if self.invoice_item.item else 'Unknown'
+        return f"{item_name} x{self.quantity} - ₹{self.amount}"
+    
+    def clean(self):
+        """Validate return quantity doesn't exceed invoice quantity"""
+        if not self.invoice_item:
+            return
+        
+        existing_returns = ReturnItem.objects.filter(
+            invoice_item=self.invoice_item,
+            is_active=True
+        ).exclude(pk=self.pk).aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+        remaining = self.invoice_item.quantity - existing_returns
+        
+        if self.quantity > remaining:
+            raise ValidationError(
+                f"Cannot return {self.quantity} units. "
+                f"Only {remaining} units remaining for this item."
+            )
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def hard_delete(self):
+        """Permanently delete the return item (bypass soft delete)."""
+        super(ReturnItem, self).delete()
 
 
 # -----------------------
 # Challan & ChallanItem
 # -----------------------
 class Challan(SoftDeleteMixin, models.Model):
-    challan_number = models.CharField(max_length=50, unique=True, editable=False)
+    challan_number = models.CharField(max_length=50, unique=True, editable=False)  # ✅ Already has business number
     party = models.ForeignKey(Party, on_delete=models.CASCADE, related_name='challans')
     invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='challans')
     date = models.DateField()
@@ -223,12 +436,11 @@ class Challan(SoftDeleteMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-date']
+        ordering = ['-date', '-challan_number']
         verbose_name = "Delivery Challan"
         verbose_name_plural = "Delivery Challans"
 
     def __str__(self):
-        # Display format: CHN-001 | 02-11-2025 | Party Name
         return f"{self.challan_number} | {self.date.strftime('%d-%m-%Y')} | {self.party.name}"
 
     @staticmethod
@@ -238,13 +450,11 @@ class Challan(SoftDeleteMixin, models.Model):
         year_month = today.strftime('%Y%m')
         prefix = f"CHN-{year_month}-"
         
-        # Get the last challan number for this month
         last_challan = Challan.objects.filter(
             challan_number__startswith=prefix
         ).order_by('-challan_number').first()
         
         if last_challan:
-            # Extract the sequence number and increment
             last_number = int(last_challan.challan_number.split('-')[-1])
             new_number = last_number + 1
         else:
@@ -256,6 +466,10 @@ class Challan(SoftDeleteMixin, models.Model):
         if not self.challan_number:
             self.challan_number = self.generate_challan_number()
         super().save(*args, **kwargs)
+
+    def hard_delete(self):
+        """Permanently delete the challan (bypass soft delete)."""
+        super(Challan, self).delete()
 
 
 class ChallanItem(SoftDeleteMixin, models.Model):
@@ -274,6 +488,11 @@ class ChallanItem(SoftDeleteMixin, models.Model):
 
     def __str__(self):
         return f"{self.item.name} ({self.quantity})"
+
+    def hard_delete(self):
+        """Permanently delete the challan item (bypass soft delete)."""
+        super(ChallanItem, self).delete()
+
 
 # -----------------------
 # Balance
@@ -303,6 +522,10 @@ class Balance(SoftDeleteMixin, models.Model):
     def __str__(self):
         return f"{self.party.name} - {self.item.name}"
 
+    def hard_delete(self):
+        """Permanently delete the balance (bypass soft delete)."""
+        super(Balance, self).delete()
+
 
 # -----------------------
 # Signals
@@ -316,19 +539,25 @@ def invoiceitem_changed(sender, instance, **kwargs):
 
 
 @receiver(pre_save, sender=Return)
-def validate_return_amount(sender, instance, **kwargs):
+def validate_return_amount_signal(sender, instance, **kwargs):
+    """Signal to validate return amount before save"""
     if instance.pk:
         return
     invoice = instance.invoice
     if invoice:
-        existing_returns = invoice.returns.filter(is_active=True).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        existing_returns = invoice.returns.filter(is_active=True).aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
         allowed = invoice.base_amount - Decimal(existing_returns)
         if instance.amount > allowed:
-            raise ValidationError({'amount': f"Return amount (₹{instance.amount}) exceeds allowable remaining amount (₹{allowed})."})
+            raise ValidationError({
+                'amount': f"Return amount (₹{instance.amount}) exceeds allowable remaining amount (₹{allowed})."
+            })
 
 
 @receiver([post_save, post_delete], sender=Return)
 def touch_invoice_on_return(sender, instance, **kwargs):
+    """Update invoice timestamp when return is modified"""
     invoice = instance.invoice
     if invoice:
         invoice.updated_at = timezone.now()

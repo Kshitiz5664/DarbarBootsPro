@@ -4,303 +4,566 @@
 {% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
 
 {% block action_button %}
-<a href="{% url 'retailapp:dashboard' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Back
+<a href="{% url 'retailapp:dashboard' %}" class="btn btn-outline-light">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
 </a>
+{% endblock %}
+
+{% block extra_head %}
+<!-- Auto PDF Download Script -->
+{% if trigger_pdf_download %}
+<script>
+    // Trigger PDF download once after redirect from invoice creation
+    window.addEventListener('load', function() {
+        console.log('🎯 PDF download trigger detected');
+        
+        // Small delay to ensure page is fully loaded
+        setTimeout(function() {
+            console.log('📥 Starting PDF download...');
+            
+            // Method 1: Open in new tab (recommended for most browsers)
+            const pdfUrl = '{% url "retailapp:invoice_pdf" invoice.id %}';
+            const pdfWindow = window.open(pdfUrl, '_blank');
+            
+            // Fallback: If popup blocked, use iframe method
+            if (!pdfWindow || pdfWindow.closed || typeof pdfWindow.closed == 'undefined') {
+                console.log('⚠️ Popup blocked, using iframe method');
+                
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = pdfUrl;
+                document.body.appendChild(iframe);
+                
+                // Show success notification
+                showNotification('✅ PDF download started! Check your downloads folder.', 'success');
+            } else {
+                // Show success notification for new tab method
+                showNotification('✅ PDF opened in new tab!', 'success');
+            }
+        }, 800);
+    });
+    
+    // Simple notification function
+    function showNotification(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const iconClass = type === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill';
+        
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" 
+                 style="z-index: 9999; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" role="alert">
+                <i class="bi bi-${iconClass} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto-dismiss after 4 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                alert.classList.remove('show');
+                setTimeout(() => alert.remove(), 150);
+            }
+        }, 4000);
+    }
+</script>
+{% endif %}
 {% endblock %}
 
 {% block billing_content %}
 <section class="invoice-bg py-4">
+    <div class="container-fluid">
 
-<!-- Action Buttons Row -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-end gap-2 flex-wrap">
-            <a href="{% url 'retailapp:invoice_update' invoice.id %}" class="btn btn-warning">
-                <i class="bi bi-pencil"></i> Edit
-            </a>
-            <a href="{% url 'retailapp:invoice_pdf' invoice.id %}" class="btn btn-info">
-                <i class="bi bi-download"></i> Download PDF
-            </a>
-            <a href="{% url 'retailapp:return_create' invoice.id %}" class="btn btn-secondary">
-                <i class="bi bi-arrow-return-left"></i> Process Return
-            </a>
-            <a href="{% url 'retailapp:invoice_delete' invoice.id %}" class="btn btn-danger" 
-               onclick="return confirm('Are you sure you want to delete this invoice?');">
-                <i class="bi bi-trash"></i> Delete
-            </a>
-        </div>
-    </div>
-</div>
-
-<!-- Invoice Header Card -->
-<div class="card shadow-lg border-0 rounded-4 mb-4">
-    <div class="card-header" style="background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(238, 90, 111, 0.15)); border: none;">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h4 class="mb-0 text-light">
-                    <i class="bi bi-receipt text-danger"></i>
-                    Invoice #{{ invoice.invoice_number }}
-                </h4>
-                <p class="mb-0 text-muted small">Created on {{ invoice.created_at|date:"d M Y, h:i A" }}</p>
-            </div>
-            <div class="col-md-4 text-md-end">
-                {% if invoice.payment_mode == 'UNPAID' %}
-                    <span class="badge bg-warning text-dark fs-6 px-4 py-2">
-                        <i class="bi bi-clock-history"></i> UNPAID
-                    </span>
-                {% elif invoice.payment_mode == 'CASH' %}
-                    <span class="badge bg-success fs-6 px-4 py-2">
-                        <i class="bi bi-cash-stack"></i> CASH
-                    </span>
-                {% elif invoice.payment_mode == 'UPI' %}
-                    <span class="badge bg-info fs-6 px-4 py-2">
-                        <i class="bi bi-phone"></i> UPI
-                    </span>
-                {% elif invoice.payment_mode == 'CARD' %}
-                    <span class="badge bg-primary fs-6 px-4 py-2">
-                        <i class="bi bi-credit-card"></i> CARD
-                    </span>
-                {% elif invoice.payment_mode == 'ONLINE' %}
-                    <span class="badge bg-info fs-6 px-4 py-2">
-                        <i class="bi bi-globe"></i> ONLINE
-                    </span>
-                {% elif invoice.payment_mode == 'CHEQUE' %}
-                    <span class="badge bg-secondary fs-6 px-4 py-2">
-                        <i class="bi bi-file-text"></i> CHEQUE
-                    </span>
-                {% else %}
-                    <span class="badge bg-secondary fs-6 px-4 py-2">
-                        <i class="bi bi-wallet2"></i> {{ invoice.get_payment_mode_display|upper }}
-                    </span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
-        <div class="row">
-            <!-- Customer Information -->
-            <div class="col-md-6">
-                <h6 class="text-info mb-3">
-                    <i class="bi bi-person-circle"></i> Customer Information
-                </h6>
-                <table class="table table-borderless detail-table">
-                    <tr>
-                        <td class="text-light fw-bold" style="width: 40%;">Customer Name:</td>
-                        <td class="text-light">{{ invoice.customer_name }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-light fw-bold">Mobile:</td>
-                        <td class="text-light">{{ invoice.customer_mobile|default:"-" }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-light fw-bold">Invoice Date:</td>
-                        <td class="text-light">{{ invoice.date|date:"d M Y" }}</td>
-                    </tr>
-                </table>
-            </div>
-
-            <!-- Invoice Summary -->
-            <div class="col-md-6">
-                <h6 class="text-info mb-3">
-                    <i class="bi bi-calculator"></i> Invoice Summary
-                </h6>
-                <table class="table table-borderless detail-table">
-                    <tr>
-                        <td class="text-light fw-bold" style="width: 40%;">Base Amount:</td>
-                        <td class="text-light">₹ {{ invoice.base_amount|floatformat:2 }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-light fw-bold">Total GST:</td>
-                        <td class="text-light">₹ {{ invoice.total_gst|floatformat:2 }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-light fw-bold">Total Discount:</td>
-                        <td class="text-light">₹ {{ invoice.total_discount|floatformat:2 }}</td>
-                    </tr>
-                    <tr class="border-top">
-                        <td class="text-success fw-bold fs-5">Final Amount:</td>
-                        <td class="text-success fw-bold fs-5">₹ {{ invoice.final_amount|floatformat:2 }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Payment Information -->
-        {% if invoice.payment_mode != 'UNPAID' %}
-        <div class="row mt-3">
+        <!-- Action Buttons Row -->
+        <div class="row mb-4">
             <div class="col-12">
-                <div class="alert alert-success" style="background: rgba(40, 167, 69, 0.15); border: 1px solid rgba(40, 167, 69, 0.3); color: #28a745;">
-                    <h6 class="mb-2"><i class="bi bi-check-circle"></i> Payment Details</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>Payment Method:</strong> {{ invoice.get_payment_mode_display }}
-                        </div>
-                        {% if invoice.transaction_reference %}
-                        <div class="col-md-6">
-                            <strong>Transaction Ref:</strong> <code style="color: #28a745;">{{ invoice.transaction_reference }}</code>
-                        </div>
-                        {% endif %}
-                        {% if invoice.payment_date %}
-                        <div class="col-md-6 mt-2">
-                            <strong>Payment Date:</strong> {{ invoice.payment_date|date:"d M Y, h:i A" }}
-                        </div>
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <a href="{% url 'retailapp:invoice_update' invoice.id %}" class="btn btn-warning" title="Edit Invoice">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{% url 'retailapp:invoice_pdf' invoice.id %}" class="btn btn-info" target="_blank" title="Download PDF">
+                        <i class="bi bi-download"></i> Download PDF
+                    </a>
+                    <a href="{% url 'retailapp:return_create' invoice.id %}" class="btn btn-secondary" title="Process Return">
+                        <i class="bi bi-arrow-return-left"></i> Process Return
+                    </a>
+                    
+                    <!-- Quick Payment Status Toggle -->
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal" title="Update Payment">
+                        <i class="bi bi-credit-card"></i> Update Payment
+                    </button>
+                    
+                    <a href="{% url 'retailapp:invoice_delete' invoice.id %}" class="btn btn-danger" 
+                       onclick="return confirm('⚠️ Are you sure you want to delete this invoice?\n\nThis will:\n- Soft delete the invoice\n- Restore stock to inventory\n- Cannot be undone\n\nClick OK to confirm deletion.');"
+                       title="Delete Invoice">
+                        <i class="bi bi-trash"></i> Delete
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Header Card -->
+        <div class="card shadow-lg border-0 rounded-4 mb-4">
+            <div class="card-header bg-gradient-primary">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-0 text-white">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            Invoice #{{ invoice.invoice_number }}
+                        </h4>
+                        <p class="mb-0 text-white-50 small">Created on {{ invoice.created_at|date:"d M Y, h:i A" }}</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <!-- Enhanced Payment Status Badge -->
+                        {% if is_no_amount_due %}
+                            {% if is_fully_settled %}
+                                <span class="badge bg-success fs-6 px-4 py-2" title="Invoice fully settled by returns">
+                                    <i class="bi bi-check-circle-fill"></i> FULLY SETTLED
+                                    {% if returns_count > 0 %}
+                                        <br><small>(via Returns)</small>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info fs-6 px-4 py-2" title="No amount due">
+                                    <i class="bi bi-info-circle-fill"></i> NO AMOUNT DUE
+                                </span>
+                            {% endif %}
+                        {% elif invoice.payment_mode == 'UNPAID' %}
+                            <span class="badge bg-warning text-dark fs-6 px-4 py-2" title="Payment pending">
+                                <i class="bi bi-clock-history"></i> UNPAID
+                                <br><small>Rs {{ invoice.final_amount|floatformat:2 }} Due</small>
+                            </span>
+                        {% elif invoice.payment_mode == 'CASH' %}
+                            <span class="badge bg-success fs-6 px-4 py-2">
+                                <i class="bi bi-cash-stack"></i> CASH
+                            </span>
+                        {% elif invoice.payment_mode == 'UPI' %}
+                            <span class="badge bg-info fs-6 px-4 py-2">
+                                <i class="bi bi-phone"></i> UPI
+                            </span>
+                        {% elif invoice.payment_mode == 'CARD' %}
+                            <span class="badge bg-primary fs-6 px-4 py-2">
+                                <i class="bi bi-credit-card"></i> CARD
+                            </span>
+                        {% elif invoice.payment_mode == 'ONLINE' %}
+                            <span class="badge bg-info fs-6 px-4 py-2">
+                                <i class="bi bi-globe"></i> ONLINE
+                            </span>
+                        {% elif invoice.payment_mode == 'CHEQUE' %}
+                            <span class="badge bg-secondary fs-6 px-4 py-2">
+                                <i class="bi bi-file-text"></i> CHEQUE
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary fs-6 px-4 py-2">
+                                <i class="bi bi-wallet2"></i> {{ invoice.get_payment_mode_display|upper }}
+                            </span>
                         {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
-        {% endif %}
+            <div class="card-body bg-light-subtle">
+                <div class="row">
+                    <!-- Customer Information -->
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3 fw-bold">
+                            <i class="bi bi-person-circle"></i> Customer Information
+                        </h6>
+                        <table class="table table-sm table-borderless detail-table">
+                            <tr>
+                                <td class="text-dark fw-bold" style="width: 40%;">Customer Name:</td>
+                                <td class="text-dark">{{ invoice.customer_name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-dark fw-bold">Mobile:</td>
+                                <td>
+                                    {% if invoice.customer_mobile %}
+                                        <a href="tel:{{ invoice.customer_mobile }}" class="text-decoration-none text-primary fw-semibold">
+                                            <i class="bi bi-telephone-fill"></i> {{ invoice.customer_mobile }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-dark fw-bold">Invoice Date:</td>
+                                <td class="text-dark">{{ invoice.date|date:"d M Y" }}</td>
+                            </tr>
+                        </table>
+                    </div>
 
-        <!-- Notes Section -->
-        {% if invoice.notes %}
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="alert alert-info" style="background: rgba(23, 162, 184, 0.15); border: 1px solid rgba(23, 162, 184, 0.3); color: #17a2b8;">
-                    <strong><i class="bi bi-info-circle"></i> Notes:</strong> {{ invoice.notes }}
+                    <!-- Invoice Summary -->
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3 fw-bold">
+                            <i class="bi bi-calculator"></i> Invoice Summary
+                        </h6>
+                        <table class="table table-sm table-borderless detail-table">
+                            <tr>
+                                <td class="text-dark fw-bold" style="width: 50%;">Base Amount:</td>
+                                <td class="text-dark text-end">₹ {{ invoice.base_amount|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-dark fw-bold">Total GST:</td>
+                                <td class="text-info text-end">+ ₹ {{ invoice.total_gst|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-dark fw-bold">Total Discount:</td>
+                                <td class="text-danger text-end">- ₹ {{ invoice.total_discount|floatformat:2 }}</td>
+                            </tr>
+                            {% if returns_count > 0 %}
+                            <tr>
+                                <td class="text-dark fw-bold">Total Returns:</td>
+                                <td class="text-warning text-end">- ₹ {{ returns_total|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr class="border-top border-2">
+                                <td class="text-success fw-bold fs-5">Final Amount:</td>
+                                <td class="text-success fw-bold fs-5 text-end">₹ {{ invoice.final_amount|floatformat:2 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Special Alert for Fully Settled Invoices -->
+                {% if is_fully_settled %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-success mb-0" style="background: #d1e7dd; border: 2px solid #0f5132;">
+                            <h6 class="mb-2 text-success">
+                                <i class="bi bi-check-circle-fill"></i> Invoice Fully Settled
+                            </h6>
+                            <p class="mb-0 text-dark">
+                                This invoice has been automatically marked as <strong>PAID</strong> because the 
+                                returned amount (₹ {{ returns_total|floatformat:2 }}) equals or exceeds the 
+                                invoice total. No further payment is required.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Payment Information -->
+                {% if invoice.payment_mode != 'UNPAID' and not is_fully_settled %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info mb-0" style="background: #cff4fc; border: 2px solid #055160;">
+                            <h6 class="mb-2 text-info-emphasis">
+                                <i class="bi bi-credit-card-fill"></i> Payment Details
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong class="text-dark">Payment Method:</strong> 
+                                    <span class="text-dark">{{ invoice.get_payment_mode_display }}</span>
+                                </div>
+                                {% if invoice.transaction_reference %}
+                                <div class="col-md-6">
+                                    <strong class="text-dark">Transaction Ref:</strong> 
+                                    <code class="text-dark bg-white px-2 py-1 rounded">{{ invoice.transaction_reference }}</code>
+                                </div>
+                                {% endif %}
+                                {% if invoice.payment_date %}
+                                <div class="col-md-6 mt-2">
+                                    <strong class="text-dark">Payment Date:</strong> 
+                                    <span class="text-dark">{{ invoice.payment_date|date:"d M Y, h:i A" }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Notes Section -->
+                {% if invoice.notes %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0" style="background: #fff3cd; border: 2px solid #664d03;">
+                            <strong class="text-dark">
+                                <i class="bi bi-sticky-fill"></i> Notes:
+                            </strong> 
+                            <span class="text-dark">{{ invoice.notes }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Invoice Items -->
+        <div class="card shadow-lg border-0 rounded-4 mb-4">
+            <div class="card-header bg-gradient-info">
+                <h5 class="mb-0 text-white">
+                    <i class="bi bi-cart3"></i> Invoice Items ({{ items_count }})
+                </h5>
+            </div>
+            <div class="card-body bg-white">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 35%;">Item Name</th>
+                                <th class="text-center" style="width: 10%;">Quantity</th>
+                                <th class="text-end" style="width: 12%;">Rate (₹)</th>
+                                <th class="text-end" style="width: 12%;">GST (₹)</th>
+                                <th class="text-end" style="width: 12%;">Discount (₹)</th>
+                                <th class="text-end" style="width: 14%;">Total (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td class="text-dark fw-semibold">{{ forloop.counter }}</td>
+                                <td>
+                                    <strong class="text-dark">{{ item.display_name }}</strong>
+                                    {% if item.item %}
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-tag"></i> HSN: {{ item.item.hns_code|default:"N/A" }}
+                                        </small>
+                                    {% else %}
+                                        <br>
+                                        <small class="badge bg-secondary">Manual Item</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">{{ item.quantity }}</span>
+                                </td>
+                                <td class="text-end text-dark fw-semibold">₹ {{ item.rate|floatformat:2 }}</td>
+                                <td class="text-end">
+                                    {% if item.gst_amount > 0 %}
+                                        <span class="text-info fw-semibold">+₹ {{ item.gst_amount|floatformat:2 }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if item.discount_amount > 0 %}
+                                        <span class="text-danger fw-semibold">-₹ {{ item.discount_amount|floatformat:2 }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-success fw-bold">₹ {{ item.total|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mb-0">No items found</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if items_count > 0 %}
+                        <tfoot class="table-dark">
+                            <tr>
+                                <td colspan="6" class="text-end fw-bold fs-5">Grand Total:</td>
+                                <td class="text-end fw-bold text-success fs-5">₹ {{ invoice.base_amount|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Returns Section -->
+        {% if returns_count > 0 %}
+        <div class="card shadow-lg border-0 rounded-4 mb-4">
+            <div class="card-header bg-gradient-warning">
+                <h5 class="mb-0 text-dark">
+                    <i class="bi bi-arrow-return-left"></i> Returns ({{ returns_count }})
+                </h5>
+            </div>
+            <div class="card-body bg-white">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 15%;">Return Date</th>
+                                <th style="width: 30%;">Item</th>
+                                <th class="text-center" style="width: 10%;">Quantity</th>
+                                <th class="text-end" style="width: 15%;">Amount (₹)</th>
+                                <th style="width: 25%;">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for return in returns %}
+                            <tr>
+                                <td class="text-dark fw-semibold">{{ forloop.counter }}</td>
+                                <td class="text-dark">{{ return.return_date|date:"d M Y" }}</td>
+                                <td>
+                                    {% if return.item %}
+                                        <strong class="text-dark">{{ return.item.display_name }}</strong>
+                                        {% if return.item.item %}
+                                            <br>
+                                            <small class="badge bg-success">
+                                                <i class="bi bi-box-seam"></i> Stock Restored
+                                            </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted fst-italic">
+                                            <i class="bi bi-file-text"></i> Manual Return
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning text-dark">{{ return.quantity }}</span>
+                                </td>
+                                <td class="text-end text-warning fw-bold">₹ {{ return.amount|floatformat:2 }}</td>
+                                <td class="text-dark">
+                                    {% if return.reason %}
+                                        {{ return.reason|truncatewords:10 }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                    {% if return.image %}
+                                        <br>
+                                        <a href="{{ return.image.url }}" target="_blank" class="badge bg-info text-decoration-none">
+                                            <i class="bi bi-image"></i> View Image
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-dark">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold">Total Returns:</td>
+                                <td class="text-end fw-bold text-warning">₹ {{ returns_total|floatformat:2 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
         {% endif %}
-    </div>
-</div>
 
-<!-- Invoice Items -->
-<div class="card shadow-lg border-0 rounded-4 mb-4">
-    <div class="card-header" style="background: linear-gradient(135deg, rgba(0, 194, 255, 0.2), rgba(0, 123, 255, 0.15)); border: none;">
-        <h5 class="mb-0 text-light">
-            <i class="bi bi-cart3"></i> Invoice Items ({{ items_count }})
-        </h5>
-    </div>
-    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Item Name</th>
-                        <th class="text-center">Quantity</th>
-                        <th class="text-end">Rate (₹)</th>
-                        <th class="text-end">GST (₹)</th>
-                        <th class="text-end">Discount (₹)</th>
-                        <th class="text-end">Total (₹)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>
-                            <strong class="text-light">{{ item.display_name }}</strong>
-                        </td>
-                        <td class="text-center text-light">{{ item.quantity }}</td>
-                        <td class="text-end text-light">₹ {{ item.rate|floatformat:2 }}</td>
-                        <td class="text-end text-light">₹ {{ item.gst_amount|floatformat:2 }}</td>
-                        <td class="text-end text-light">₹ {{ item.discount_amount|floatformat:2 }}</td>
-                        <td class="text-end text-success fw-bold">₹ {{ item.total|floatformat:2 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No items found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                <tfoot class="table-dark">
-                    <tr>
-                        <td colspan="6" class="text-end fw-bold">Grand Total:</td>
-                        <td class="text-end fw-bold text-success">₹ {{ invoice.final_amount|floatformat:2 }}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Returns Section -->
-{% if returns_count > 0 %}
-<div class="card shadow-lg border-0 rounded-4 mb-4">
-    <div class="card-header" style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(251, 146, 60, 0.15)); border: none;">
-        <h5 class="mb-0 text-light">
-            <i class="bi bi-arrow-return-left"></i> Returns ({{ returns_count }})
-        </h5>
-    </div>
-    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Return Date</th>
-                        <th>Item</th>
-                        <th class="text-center">Quantity</th>
-                        <th class="text-end">Amount (₹)</th>
-                        <th>Reason</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for return in returns %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td class="text-light">{{ return.return_date|date:"d M Y" }}</td>
-                        <td class="text-light">
-                            {% if return.item %}
-                                {{ return.item.display_name }}
-                            {% else %}
-                                <span class="text-muted">Manual Return</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center text-light">{{ return.quantity }}</td>
-                        <td class="text-end text-warning fw-bold">₹ {{ return.amount|floatformat:2 }}</td>
-                        <td class="text-light">{{ return.reason|default:"-"|truncatewords:10 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Audit Information -->
-<div class="card shadow-lg border-0 rounded-4">
-    <div class="card-header" style="background: linear-gradient(135deg, rgba(108, 117, 125, 0.2), rgba(148, 163, 184, 0.15)); border: none;">
-        <h5 class="mb-0 text-light">
-            <i class="bi bi-clock-history"></i> Audit Information
-        </h5>
-    </div>
-    <div class="card-body" style="background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);">
-        <div class="row">
-            <div class="col-md-6">
-                <p class="text-light mb-1">
-                    <strong>Created By:</strong> {{ invoice.created_by.get_full_name|default:invoice.created_by.username }}
-                </p>
-                <p class="text-muted small">{{ invoice.created_at|date:"d M Y, h:i A" }}</p>
+        <!-- Audit Information -->
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-gradient-secondary">
+                <h5 class="mb-0 text-white">
+                    <i class="bi bi-clock-history"></i> Audit Information
+                </h5>
             </div>
-            <div class="col-md-6">
-                <p class="text-light mb-1">
-                    <strong>Last Updated By:</strong> {{ invoice.updated_by.get_full_name|default:invoice.updated_by.username|default:"-" }}
-                </p>
-                <p class="text-muted small">{{ invoice.updated_at|date:"d M Y, h:i A" }}</p>
+            <div class="card-body bg-light-subtle">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="text-dark mb-1">
+                            <strong><i class="bi bi-person-plus-fill"></i> Created By:</strong> 
+                            <span class="text-dark">{{ invoice.created_by.get_full_name|default:invoice.created_by.username }}</span>
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-calendar-event"></i> {{ invoice.created_at|date:"d M Y, h:i A" }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-dark mb-1">
+                            <strong><i class="bi bi-person-check-fill"></i> Last Updated By:</strong> 
+                            <span class="text-dark">{{ invoice.updated_by.get_full_name|default:invoice.updated_by.username|default:"-" }}</span>
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-calendar-check"></i> {{ invoice.updated_at|date:"d M Y, h:i A" }}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
+    </div>
 </section>
 
+<!-- Quick Payment Update Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="paymentModalLabel">
+                    <i class="bi bi-credit-card-fill"></i> Update Payment Status
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'retailapp:ajax_update_payment_mode' invoice.id %}" id="quickPaymentForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="payment_mode_select" class="form-label text-dark fw-bold">Payment Method</label>
+                        <select class="form-select" id="payment_mode_select" name="payment_mode" required>
+                            <option value="UNPAID" {% if invoice.payment_mode == 'UNPAID' %}selected{% endif %}>Unpaid</option>
+                            <option value="CASH" {% if invoice.payment_mode == 'CASH' %}selected{% endif %}>Cash</option>
+                            <option value="UPI" {% if invoice.payment_mode == 'UPI' %}selected{% endif %}>UPI</option>
+                            <option value="CARD" {% if invoice.payment_mode == 'CARD' %}selected{% endif %}>Card</option>
+                            <option value="ONLINE" {% if invoice.payment_mode == 'ONLINE' %}selected{% endif %}>Online Banking</option>
+                            <option value="CHEQUE" {% if invoice.payment_mode == 'CHEQUE' %}selected{% endif %}>Cheque</option>
+                            <option value="OTHER" {% if invoice.payment_mode == 'OTHER' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="transactionRefGroup">
+                        <label for="transaction_reference_input" class="form-label text-dark fw-bold">
+                            Transaction Reference
+                            <small class="text-muted">(Optional)</small>
+                        </label>
+                        <input type="text" class="form-control" id="transaction_reference_input" 
+                               name="transaction_reference" 
+                               value="{{ invoice.transaction_reference|default:'' }}"
+                               placeholder="Enter transaction ID or reference">
+                        <small class="form-text text-muted">Recommended for UPI/Card/Online payments</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle-fill"></i> Update Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
+/* Dark background with light cards */
 .invoice-bg {
     background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
     min-height: 100vh;
     padding: 30px 0;
 }
 
-.card-header {
-    padding: 20px 25px;
+/* Light card backgrounds with dark text */
+.card {
+    background: #ffffff;
 }
 
+.bg-light-subtle {
+    background-color: #f8f9fa !important;
+}
+
+/* Gradient headers */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+}
+
+.bg-gradient-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+/* Dark text on light backgrounds */
 .card-body {
-    padding: 25px;
+    color: #212529;
 }
 
 .detail-table td {
@@ -308,38 +571,33 @@
     border: none;
 }
 
+/* Table styling - white background with dark text */
 .table {
-    color: #e0e0e0;
+    background: #ffffff;
+    color: #212529;
 }
 
 .table thead th {
-    color: #00c2ff;
-    border-color: rgba(0, 194, 255, 0.25);
-    background: rgba(0, 194, 255, 0.15);
+    color: #ffffff;
+    background-color: #212529;
     font-weight: 600;
+    border: none;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
 }
 
 .table-hover tbody tr:hover {
-    background: rgba(0, 194, 255, 0.08);
+    background-color: rgba(0, 123, 255, 0.08);
+    cursor: pointer;
 }
 
 .table td {
-    border-color: rgba(0, 194, 255, 0.15);
+    border-color: rgba(0, 0, 0, 0.1);
 }
 
-.table-dark {
-    background: rgba(0, 194, 255, 0.15);
-    color: #00c2ff;
-}
-
-.table tfoot {
-    background: rgba(0, 194, 255, 0.15);
-}
-
-.badge {
-    font-weight: 600;
-}
-
+/* Buttons */
 .btn {
     border-radius: 10px;
     padding: 10px 20px;
@@ -349,35 +607,92 @@
 
 .btn:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.btn-warning {
-    background: linear-gradient(135deg, #ffc107, #ff9800);
-    border: none;
-    color: #000;
+/* Modal */
+.modal-content {
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.btn-info {
-    background: linear-gradient(135deg, #17a2b8, #0dcaf0);
-    border: none;
-    color: #fff;
+/* Form controls */
+.form-control, .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
 }
 
-.btn-secondary {
-    background: linear-gradient(135deg, #6c757d, #5a6268);
-    border: none;
+.form-control:focus, .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
 }
 
-.btn-danger {
-    background: linear-gradient(135deg, #dc3545, #c82333);
-    border: none;
+/* Badges */
+.badge {
+    font-weight: 600;
+    padding: 0.5em 0.75em;
 }
 
-code {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.9em;
+/* Alerts */
+.alert {
+    border-radius: 12px;
+    border-width: 2px;
 }
 </style>
+
+<script>
+// Quick Payment Form Handler
+document.getElementById('quickPaymentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const url = this.action;
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+            modal.hide();
+            
+            // Show success message
+            alert('✅ ' + data.message);
+            
+            // Reload page to reflect changes
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Failed to update payment status');
+    });
+});
+
+// Toggle transaction reference field visibility
+document.getElementById('payment_mode_select').addEventListener('change', function() {
+    const transactionRefGroup = document.getElementById('transactionRefGroup');
+    const selectedMode = this.value;
+    
+    // Highlight transaction ref for digital payments
+    if (['UPI', 'CARD', 'ONLINE'].includes(selectedMode)) {
+        transactionRefGroup.classList.add('border', 'border-primary', 'rounded', 'p-2');
+        document.getElementById('transaction_reference_input').focus();
+    } else {
+        transactionRefGroup.classList.remove('border', 'border-primary', 'rounded', 'p-2');
+        if (selectedMode === 'UNPAID') {
+            // Clear transaction ref for unpaid
+            document.getElementById('transaction_reference_input').value = '';
+        }
+    }
+});
+</script>
 {% endblock %}

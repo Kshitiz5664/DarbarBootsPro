@@ -335,10 +335,12 @@ class RetailInvoiceItemAdmin(admin.ModelAdmin):
     discount_amount_display.admin_order_field = "discount_amount"
     
     def total_display(self, obj):
+        value = float(obj.total or 0)
         return format_html(
-            '<strong style="color: #28a745;">₹{:,.2f}</strong>',
-            obj.total
+            '<strong style="color: #28a745;">₹{}</strong>',
+            f"{value:,.2f}"
         )
+
     total_display.short_description = "Total"
     total_display.admin_order_field = "total"
     
@@ -448,25 +450,21 @@ class RetailReturnAdmin(admin.ModelAdmin):
     item_display.short_description = "Item"
     
     def amount_display(self, obj):
-        """Display amount with currency"""
+        value = float(obj.amount or 0)
         return format_html(
-            '<strong style="color: #dc3545;">₹{:,.2f}</strong>',
-            obj.amount
+            '<strong style="color: #dc3545;">₹{}</strong>',
+            f"{value:,.2f}"
         )
+
     amount_display.short_description = "Amount"
     amount_display.admin_order_field = "amount"
     
     def has_image(self, obj):
-        """Display if return has image"""
-        if obj.image:
-            return format_html(
-                '<span style="color: green; font-size: 18px;">📷</span>'
-            )
-        return format_html(
-            '<span style="color: #ccc;">—</span>'
-        )
-    has_image.short_description = "Image"
+        return bool(obj.image)
+
     has_image.boolean = True
+    has_image.short_description = "Image"
+
     
     def image_preview(self, obj):
         """Display image preview if available"""

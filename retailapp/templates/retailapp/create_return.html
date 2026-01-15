@@ -92,9 +92,9 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">Return Amount (₹)</label>
+                            <label class="form-label">Return Amount (₹) <span class="text-danger">*</span></label>
                             {{ form.amount }}
-                            <small class="text-muted d-block mt-1">
+                            <small class="text-muted d-block mt-1" id="amountHint">
                                 <i class="bi bi-info-circle"></i> Auto-calculated for invoice items
                             </small>
                         </div>
@@ -271,6 +271,11 @@ textarea.form-control {
     transform: translateY(-2px);
 }
 
+.btn-success:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .btn-outline-secondary {
     border: 2px solid rgba(255, 255, 255, 0.2);
     color: #b8b8b8;
@@ -280,6 +285,16 @@ textarea.form-control {
 .text-danger {
     color: #ff6b6b !important;
 }
+
+.amount-calculated {
+    background: rgba(76, 175, 80, 0.2) !important;
+    border-color: #4caf50 !important;
+}
+
+.amount-manual {
+    background: rgba(255, 193, 7, 0.1) !important;
+    border-color: rgba(255, 193, 7, 0.5) !important;
+}
 </style>
 
 <script>
@@ -288,110 +303,189 @@ document.addEventListener('DOMContentLoaded', function() {
     const quantityInput = document.getElementById('id_quantity');
     const amountInput = document.getElementById('id_amount');
     const maxQtyHint = document.getElementById('maxQtyHint');
+    const amountHint = document.getElementById('amountHint');
     const returnForm = document.getElementById('returnForm');
     const submitBtn = document.getElementById('submitBtn');
 
-    // Store item data
+    // ✅ FIXED: Build item data with REMAINING returnable quantities
     const itemData = {};
     
     {% for inv_item in invoice.retail_items.all %}
     {% if inv_item.is_active %}
-    itemData['{{ inv_item.id }}'] = {
-        quantity: {{ inv_item.quantity }},
-        rate: {{ inv_item.rate|default:0 }},
-        gst_percent: {{ inv_item.gst_percent|default:0 }},
-        discount_percent: {{ inv_item.discount_percent|default:0 }},
-        total: {{ inv_item.total|default:0 }},
-        name: '{{ inv_item.display_name|escapejs }}'
-    };
+    (function() {
+        // ✅ FIX: Calculate already returned quantity for this item
+        let alreadyReturned = 0;
+        {% for ret in invoice.retail_returns.all %}
+        {% if ret.is_active and ret.item_id == inv_item.id %}
+        alreadyReturned += {{ ret.quantity }};
+        {% endif %}
+        {% endfor %}
+        
+        // Calculate remaining returnable quantity
+        const remainingQty = {{ inv_item.quantity }} - alreadyReturned;
+        
+        // Only add items that have quantity available for return
+        if (remainingQty > 0) {
+            itemData['{{ inv_item.id }}'] = {
+                id: '{{ inv_item.id }}',
+                originalQty: {{ inv_item.quantity }},
+                alreadyReturned: alreadyReturned,
+                quantity: remainingQty,
+                total: {{ inv_item.total|default:0 }},
+                name: '{{ inv_item.display_name|escapejs }}',
+                perUnit: {{ inv_item.quantity }} > 0 ? ({{ inv_item.total|default:0 }} / {{ inv_item.quantity }}) : 0
+            };
+            console.log('📦 Item ' + itemData['{{ inv_item.id }}'].name + ': Original=' + itemData['{{ inv_item.id }}'].originalQty + ', Returned=' + alreadyReturned + ', Available=' + remainingQty);
+        }
+    })();
     {% endif %}
     {% endfor %}
 
-    // When item is selected
-    if (itemSelect) {
-        itemSelect.addEventListener('change', function() {
-            const itemId = this.value;
-            
-            if (itemId && itemData[itemId]) {
-                const item = itemData[itemId];
-                
-                // Set max quantity
-                quantityInput.max = item.quantity;
-                quantityInput.value = 1;
-                
-                // Calculate and set amount
-                const perUnitAmount = item.quantity > 0 ? item.total / item.quantity : 0;
-                amountInput.value = perUnitAmount.toFixed(2);
-                amountInput.readOnly = true;
-                
-                // Update hint
-                maxQtyHint.innerHTML = `<i class="bi bi-info-circle"></i> Max returnable quantity: ${item.quantity}`;
-                
-            } else {
-                // Manual return
-                quantityInput.max = '';
-                quantityInput.value = 1;
-                amountInput.value = '';
-                amountInput.readOnly = false;
-                maxQtyHint.innerHTML = '<i class="bi bi-info-circle"></i> Enter quantity and amount manually';
-            }
-        });
+    console.log('✅ Return form initialized with ' + Object.keys(itemData).length + ' returnable items');
 
-        // When quantity changes
-        quantityInput.addEventListener('input', function() {
-            const itemId = itemSelect.value;
+    // ✅ FUNCTION: Calculate and update return amount
+    function updateReturnAmount() {
+        const itemId = itemSelect.value;
+        const quantity = parseInt(quantityInput.value) || 1;
+        
+        if (!itemId) {
+            amountInput.value = '';
+            amountInput.readOnly = false;
+            amountInput.required = true;
+            amountInput.classList.remove('amount-calculated');
+            amountInput.classList.add('amount-manual');
+            amountInput.placeholder = 'Enter amount manually';
             
-            if (itemId && itemData[itemId]) {
-                const item = itemData[itemId];
-                const qty = parseFloat(this.value) || 0;
-                
-                // Validate max quantity
-                if (qty > item.quantity) {
-                    this.value = item.quantity;
-                    alert(`Maximum returnable quantity is ${item.quantity}`);
-                }
-                
-                // Calculate amount
-                const perUnitAmount = item.quantity > 0 ? item.total / item.quantity : 0;
-                const totalAmount = perUnitAmount * (parseFloat(this.value) || 0);
-                amountInput.value = totalAmount.toFixed(2);
+            quantityInput.removeAttribute('max');
+            
+            maxQtyHint.innerHTML = '<i class="bi bi-info-circle"></i> Enter quantity and amount manually';
+            amountHint.innerHTML = '<i class="bi bi-exclamation-triangle text-warning"></i> Manual return - enter amount';
+            
+            console.log('📝 Manual return mode activated');
+            return;
+        }
+        
+        const item = itemData[itemId];
+        
+        if (!item) {
+            console.error('❌ Item data not found for ID:', itemId);
+            return;
+        }
+        
+        // ✅ Validate quantity against AVAILABLE (not original)
+        if (quantity > item.quantity) {
+            quantityInput.value = item.quantity;
+            alert('⚠️ Maximum returnable quantity is ' + item.quantity + ' for ' + item.name + '\n\n(Original: ' + item.originalQty + ', Already Returned: ' + item.alreadyReturned + ')');
+            return;
+        }
+        
+        const perUnitPrice = item.perUnit;
+        const totalAmount = perUnitPrice * quantity;
+        
+        amountInput.value = totalAmount.toFixed(2);
+        amountInput.readOnly = false;
+        amountInput.required = true;
+        amountInput.classList.add('amount-calculated');
+        amountInput.classList.remove('amount-manual');
+        
+        quantityInput.max = item.quantity;
+        maxQtyHint.innerHTML = '<i class="bi bi-check-circle text-success"></i> Available for return: ' + item.quantity + ' of ' + item.originalQty + ' units';
+        amountHint.innerHTML = '<i class="bi bi-calculator text-success"></i> Calculated: ₹' + perUnitPrice.toFixed(2) + ' × ' + quantity + ' = ₹' + totalAmount.toFixed(2);
+        
+        console.log('✅ Amount calculated: ' + item.name + ' | ₹' + perUnitPrice.toFixed(2) + ' × ' + quantity + ' = ₹' + totalAmount.toFixed(2));
+        
+        amountInput.style.transition = 'all 0.3s ease';
+        amountInput.style.transform = 'scale(1.05)';
+        setTimeout(function() {
+            amountInput.style.transform = 'scale(1)';
+        }, 300);
+    }
+
+    // ✅ EVENT LISTENERS
+    if (itemSelect) {
+        itemSelect.addEventListener('change', updateReturnAmount);
+    }
+
+    if (quantityInput) {
+        quantityInput.addEventListener('input', function() {
+            const qty = parseInt(this.value);
+            
+            if (qty <= 0) {
+                this.value = 1;
+            }
+            
+            updateReturnAmount();
+        });
+        
+        quantityInput.addEventListener('keypress', function(e) {
+            if (e.key && !/[0-9]/.test(e.key)) {
+                e.preventDefault();
             }
         });
     }
 
-    // Form submission
-    returnForm.addEventListener('submit', function(e) {
-        const qty = parseFloat(quantityInput.value) || 0;
-        const amount = parseFloat(amountInput.value) || 0;
-        const itemId = itemSelect?.value;
+    // ✅ FORM VALIDATION BEFORE SUBMISSION
+    if (returnForm) {
+        returnForm.addEventListener('submit', function(e) {
+            const itemId = itemSelect ? itemSelect.value : '';
+            const qty = parseInt(quantityInput.value) || 0;
+            const amount = parseFloat(amountInput.value) || 0;
 
-        // Validations
-        if (qty <= 0) {
-            e.preventDefault();
-            alert('Please enter a valid quantity!');
-            quantityInput.focus();
-            return false;
-        }
+            console.log('📋 Validating form:', {itemId: itemId, qty: qty, amount: amount});
 
-        if (!itemId && amount <= 0) {
-            e.preventDefault();
-            alert('Please enter a valid return amount for manual return!');
-            amountInput.focus();
-            return false;
-        }
-
-        if (itemId && itemData[itemId]) {
-            const maxQty = itemData[itemId].quantity;
-            if (qty > maxQty) {
+            if (qty <= 0) {
                 e.preventDefault();
-                alert(`Cannot return ${qty} units. Maximum returnable: ${maxQty}`);
+                alert('⚠️ Please enter a valid quantity (minimum 1)!');
+                quantityInput.focus();
                 return false;
             }
-        }
 
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing Return...';
-    });
+            if (amount <= 0) {
+                e.preventDefault();
+                alert('⚠️ Return amount must be greater than zero!\n\nIf you selected an item, the amount should auto-calculate.\nFor manual returns, please enter a positive amount.');
+                amountInput.focus();
+                return false;
+            }
+
+            if (itemId && itemData[itemId]) {
+                const item = itemData[itemId];
+                
+                if (qty > item.quantity) {
+                    e.preventDefault();
+                    alert('⚠️ Cannot return ' + qty + ' units.\n\nMaximum returnable quantity for ' + item.name + ': ' + item.quantity + '\n(Original: ' + item.originalQty + ', Already Returned: ' + item.alreadyReturned + ')');
+                    quantityInput.focus();
+                    return false;
+                }
+                
+                const expectedAmount = item.perUnit * qty;
+                const difference = Math.abs(amount - expectedAmount);
+                
+                if (difference > 1.00) {
+                    const confirmMsg = '⚠️ Amount Verification:\n\nExpected: ₹' + expectedAmount.toFixed(2) + '\nEntered: ₹' + amount.toFixed(2) + '\nDifference: ₹' + difference.toFixed(2) + '\n\nDo you want to continue with ₹' + amount.toFixed(2) + '?';
+                    
+                    if (!confirm(confirmMsg)) {
+                        e.preventDefault();
+                        amountInput.focus();
+                        return false;
+                    }
+                }
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing Return...';
+            
+            console.log('✅ Form validation passed - submitting...');
+            return true;
+        });
+    }
+
+    if (itemSelect && itemSelect.value) {
+        console.log('🔄 Auto-calculating for pre-selected item...');
+        updateReturnAmount();
+    }
+    
+    console.log('✅ Return form JavaScript fully loaded and ready');
 });
 </script>
+
 {% endblock %}
