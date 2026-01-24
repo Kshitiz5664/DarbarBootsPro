@@ -562,6 +562,8 @@ textarea.form-control:focus {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('💰 Payment Form Initialized');
+    
     // Form elements
     const form = document.getElementById('payment-form');
     const dateInput = document.getElementById('{{ form.date.id_for_label }}');
@@ -584,6 +586,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const partyManualContainer = document.getElementById('party-manual-container');
     const partyModeSelect = document.getElementById('party_mode_select');
     const partyModeManual = document.getElementById('party_mode_manual');
+    
+    // ✅ CHECK: Verify all elements exist
+    console.log('Invoice Select:', invoiceSelect ? '✅ Found' : '❌ Missing');
+    console.log('Amount Input:', amountInput ? '✅ Found' : '❌ Missing');
+    console.log('Invoice Info Section:', invoiceInfoSection ? '✅ Found' : '❌ Missing');
     
     // Store pending amount globally
     let currentPendingAmount = 0;
@@ -620,69 +627,97 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    partyModeSelect.addEventListener('change', togglePartyMode);
-    partyModeManual.addEventListener('change', togglePartyMode);
+    if (partyModeSelect && partyModeManual) {
+        partyModeSelect.addEventListener('change', togglePartyMode);
+        partyModeManual.addEventListener('change', togglePartyMode);
+    }
 
     // ============================================
     // FETCH AND DISPLAY INVOICE AMOUNTS
     // ============================================
     function fetchInvoiceAmounts(invoiceId) {
+        console.log(`🔍 Fetching amounts for invoice ID: ${invoiceId}`);
+        
         if (!invoiceId) {
-            invoiceInfoSection.style.display = 'none';
+            console.log('No invoice selected, hiding info section');
+            if (invoiceInfoSection) invoiceInfoSection.style.display = 'none';
             currentPendingAmount = 0;
             hasInvoiceSelected = false;
-            amountInput.removeAttribute('data-pending');
+            if (amountInput) amountInput.removeAttribute('data-pending');
             validateAmount();
             return;
         }
 
         hasInvoiceSelected = true;
 
-        // Fetch invoice amounts via AJAX
-        fetch(`/billing/invoice-amounts/${invoiceId}/`)
+        // ✅ FIXED: Use correct API endpoint
+        fetch(`/billing/api/invoice-amounts/${invoiceId}/`)
             .then(response => {
+                console.log('📡 Response status:', response.status);
                 if (!response.ok) {
-                    throw new Error('Invoice not found');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                if (data.error) {
-                    console.error('Error:', data.error);
-                    invoiceInfoSection.style.display = 'none';
+                console.log('📦 Invoice data received:', data);
+                
+                if (data.success === false || data.error) {
+                    console.error('❌ API returned error:', data.error);
+                    if (invoiceInfoSection) invoiceInfoSection.style.display = 'none';
                     hasInvoiceSelected = false;
-                } else {
-                    // Store pending amount
-                    currentPendingAmount = parseFloat(data.pending);
-                    
-                    // Show and update the invoice info section
+                    return;
+                }
+                
+                // Store pending amount
+                currentPendingAmount = parseFloat(data.pending) || 0;
+                
+                console.log(`✅ Invoice details:
+  - Total: ₹${data.total}
+  - Paid: ₹${data.paid}
+  - Pending: ₹${currentPendingAmount}`);
+                
+                // Show and update the invoice info section
+                if (invoiceInfoSection) {
                     invoiceInfoSection.style.display = 'block';
                     
                     // Update invoice number
-                    invoiceNumberDisplay.textContent = data.invoice_number || '-';
+                    if (invoiceNumberDisplay) {
+                        invoiceNumberDisplay.textContent = data.invoice_number || '-';
+                    }
                     
                     // Update values with animation
-                    totalDisplay.parentElement.classList.add('updated');
-                    paidDisplay.parentElement.classList.add('updated');
-                    pendingDisplay.parentElement.classList.add('updated');
+                    if (totalDisplay) {
+                        totalDisplay.parentElement.classList.add('updated');
+                        totalDisplay.textContent = parseFloat(data.total || 0).toFixed(2);
+                    }
                     
-                    totalDisplay.textContent = data.total.toFixed(2);
-                    paidDisplay.textContent = (data.total - data.pending).toFixed(2);
-                    pendingDisplay.textContent = data.pending.toFixed(2);
+                    if (paidDisplay) {
+                        paidDisplay.parentElement.classList.add('updated');
+                        paidDisplay.textContent = parseFloat(data.paid || 0).toFixed(2);
+                    }
+                    
+                    if (pendingDisplay) {
+                        pendingDisplay.parentElement.classList.add('updated');
+                        pendingDisplay.textContent = currentPendingAmount.toFixed(2);
+                    }
                     
                     // Set pending amount as default payment amount if empty
-                    if (data.pending > 0 && !amountInput.value) {
-                        amountInput.value = data.pending.toFixed(2);
+                    if (amountInput && currentPendingAmount > 0 && !amountInput.value) {
+                        amountInput.value = currentPendingAmount.toFixed(2);
+                        console.log(`✅ Auto-filled amount: ₹${currentPendingAmount.toFixed(2)}`);
                     }
                     
                     // Store pending in data attribute
-                    amountInput.setAttribute('data-pending', data.pending);
+                    if (amountInput) {
+                        amountInput.setAttribute('data-pending', currentPendingAmount);
+                    }
                     
                     // Remove animation class after animation completes
                     setTimeout(() => {
-                        totalDisplay.parentElement.classList.remove('updated');
-                        paidDisplay.parentElement.classList.remove('updated');
-                        pendingDisplay.parentElement.classList.remove('updated');
+                        if (totalDisplay) totalDisplay.parentElement.classList.remove('updated');
+                        if (paidDisplay) paidDisplay.parentElement.classList.remove('updated');
+                        if (pendingDisplay) pendingDisplay.parentElement.classList.remove('updated');
                     }, 300);
                     
                     // Validate current amount
@@ -690,9 +725,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error fetching invoice data:', error);
-                invoiceInfoSection.style.display = 'none';
+                console.error('❌ Error fetching invoice data:', error);
+                if (invoiceInfoSection) invoiceInfoSection.style.display = 'none';
                 hasInvoiceSelected = false;
+                alert(`Failed to fetch invoice details: ${error.message}`);
             });
     }
 
@@ -700,20 +736,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // VALIDATE PAYMENT AMOUNT
     // ============================================
     function validateAmount() {
+        if (!amountInput) return true;
+        
         const amount = parseFloat(amountInput.value);
         
         // Clear previous errors
         amountInput.classList.remove('is-invalid', 'amount-warning');
-        amountError.textContent = '';
-        amountError.style.display = 'none';
-        submitBtn.disabled = false;
+        if (amountError) {
+            amountError.textContent = '';
+            amountError.style.display = 'none';
+        }
+        if (submitBtn) submitBtn.disabled = false;
         
         // Basic validation: amount must be greater than zero
         if (isNaN(amount) || amount <= 0) {
             amountInput.classList.add('is-invalid');
-            amountError.textContent = 'Amount must be greater than zero';
-            amountError.style.display = 'block';
-            submitBtn.disabled = true;
+            if (amountError) {
+                amountError.textContent = 'Amount must be greater than zero';
+                amountError.style.display = 'block';
+            }
+            if (submitBtn) submitBtn.disabled = true;
             return false;
         }
         
@@ -721,10 +763,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (hasInvoiceSelected && currentPendingAmount > 0) {
             if (amount > currentPendingAmount) {
                 amountInput.classList.add('amount-warning');
-                amountError.textContent = `⚠️ Amount exceeds pending balance of ₹${currentPendingAmount.toFixed(2)}`;
-                amountError.style.display = 'block';
-                amountError.style.color = '#ffc107';
-                submitBtn.disabled = true;
+                if (amountError) {
+                    amountError.textContent = `⚠️ Amount exceeds pending balance of ₹${currentPendingAmount.toFixed(2)}`;
+                    amountError.style.display = 'block';
+                    amountError.style.color = '#ffc107';
+                }
+                if (submitBtn) submitBtn.disabled = true;
                 return false;
             }
         }
@@ -737,109 +781,130 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     
     // Invoice selection change
-    invoiceSelect.addEventListener('change', function() {
-        fetchInvoiceAmounts(this.value);
-    });
+    if (invoiceSelect) {
+        invoiceSelect.addEventListener('change', function() {
+            console.log('📋 Invoice changed to:', this.value);
+            fetchInvoiceAmounts(this.value);
+        });
+    }
     
     // Amount input validation (real-time)
-    amountInput.addEventListener('input', function() {
-        validateAmount();
-    });
-    
-    // Amount blur - format to 2 decimals
-    amountInput.addEventListener('blur', function() {
-        if (this.value) {
-            const amount = parseFloat(this.value);
-            if (!isNaN(amount) && amount > 0) {
-                this.value = amount.toFixed(2);
+    if (amountInput) {
+        amountInput.addEventListener('input', function() {
+            validateAmount();
+        });
+        
+        // Amount blur - format to 2 decimals
+        amountInput.addEventListener('blur', function() {
+            if (this.value) {
+                const amount = parseFloat(this.value);
+                if (!isNaN(amount) && amount > 0) {
+                    this.value = amount.toFixed(2);
+                }
             }
-        }
-        validateAmount();
-    });
+            validateAmount();
+        });
+    }
     
     // ============================================
     // FORM SUBMISSION VALIDATION
     // ============================================
-    form.addEventListener('submit', function(e) {
-        const amount = parseFloat(amountInput.value);
-        
-        // Validate party selection
-        if (partyModeSelect.checked && !partySelect.value) {
-            e.preventDefault();
-            alert('⚠️ Please select a party from the dropdown.');
-            partySelect.focus();
-            return false;
-        }
-        
-        if (partyModeManual.checked && !manualPartyInput.value.trim()) {
-            e.preventDefault();
-            alert('⚠️ Please enter a party name.');
-            manualPartyInput.focus();
-            return false;
-        }
-        
-        // Basic validation
-        if (!validateAmount()) {
-            e.preventDefault();
-            amountInput.classList.add('shake');
-            setTimeout(() => {
-                amountInput.classList.remove('shake');
-            }, 500);
-            return false;
-        }
-        
-        // If invoice is selected, perform additional checks
-        if (hasInvoiceSelected && currentPendingAmount > 0) {
-            const pending = currentPendingAmount;
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('📤 Form submission started...');
             
-            // Prevent submission if amount exceeds pending
-            if (amount > pending) {
+            const amount = amountInput ? parseFloat(amountInput.value) : 0;
+            
+            // Validate party selection
+            if (partyModeSelect && partyModeSelect.checked && partySelect && !partySelect.value) {
                 e.preventDefault();
-                
-                amountInput.classList.add('shake');
-                amountInput.focus();
-                
-                alert(`❌ Payment Cannot Exceed Pending Amount!\n\n` +
-                      `Payment Amount: ₹${amount.toFixed(2)}\n` +
-                      `Pending Amount: ₹${pending.toFixed(2)}\n\n` +
-                      `Please enter a maximum of ₹${pending.toFixed(2)}`);
-                
-                setTimeout(() => {
-                    amountInput.classList.remove('shake');
-                }, 500);
-                
+                alert('⚠️ Please select a party from the dropdown.');
+                partySelect.focus();
                 return false;
             }
             
-            // Confirm if amount is less than pending (partial payment)
-            if (amount < pending) {
-                const remaining = pending - amount;
-                const confirmed = confirm(
-                    `⚠️ Partial Payment Confirmation\n\n` +
-                    `Payment Amount: ₹${amount.toFixed(2)}\n` +
-                    `Total Pending: ₹${pending.toFixed(2)}\n` +
-                    `Remaining Balance: ₹${remaining.toFixed(2)}\n\n` +
-                    `Do you want to continue with partial payment?`
-                );
+            if (partyModeManual && partyModeManual.checked && manualPartyInput && !manualPartyInput.value.trim()) {
+                e.preventDefault();
+                alert('⚠️ Please enter a party name.');
+                manualPartyInput.focus();
+                return false;
+            }
+            
+            // Basic validation
+            if (!validateAmount()) {
+                e.preventDefault();
+                if (amountInput) {
+                    amountInput.classList.add('shake');
+                    setTimeout(() => {
+                        amountInput.classList.remove('shake');
+                    }, 500);
+                }
+                return false;
+            }
+            
+            // If invoice is selected, perform additional checks
+            if (hasInvoiceSelected && currentPendingAmount > 0) {
+                const pending = currentPendingAmount;
                 
-                if (!confirmed) {
+                // Prevent submission if amount exceeds pending
+                if (amount > pending) {
                     e.preventDefault();
+                    
+                    if (amountInput) {
+                        amountInput.classList.add('shake');
+                        amountInput.focus();
+                        
+                        setTimeout(() => {
+                            amountInput.classList.remove('shake');
+                        }, 500);
+                    }
+                    
+                    alert(`❌ Payment Cannot Exceed Pending Amount!\n\n` +
+                          `Payment Amount: ₹${amount.toFixed(2)}\n` +
+                          `Pending Amount: ₹${pending.toFixed(2)}\n\n` +
+                          `Please enter a maximum of ₹${pending.toFixed(2)}`);
+                    
                     return false;
                 }
+                
+                // Confirm if amount is less than pending (partial payment)
+                if (amount < pending) {
+                    const remaining = pending - amount;
+                    const confirmed = confirm(
+                        `⚠️ Partial Payment Confirmation\n\n` +
+                        `Payment Amount: ₹${amount.toFixed(2)}\n` +
+                        `Total Pending: ₹${pending.toFixed(2)}\n` +
+                        `Remaining Balance: ₹${remaining.toFixed(2)}\n\n` +
+                        `Do you want to continue with partial payment?`
+                    );
+                    
+                    if (!confirmed) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
             }
-        }
-        
-        // Show loading state
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
-    });
+            
+            // Show loading state
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            }
+            
+            console.log('✅ Form validation passed, submitting...');
+        });
+    }
 
     // ============================================
     // INITIALIZE IF INVOICE PRE-SELECTED
     // ============================================
-    if (invoiceSelect.value) {
+    if (invoiceSelect && invoiceSelect.value) {
+        console.log('Pre-selected invoice detected, fetching amounts...');
         fetchInvoiceAmounts(invoiceSelect.value);
     }
+    
+    console.log('✅ Payment form fully initialized');
 });
 </script>
+
 {% endblock %}

@@ -1,83 +1,454 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends "billing/base.html" %}
 
-{% block title %}Delete Invoice - {{ invoice.invoice_number }}{% endblock %}
+{% block page_title %}Delete Challan{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> Confirm Invoice Deletion
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <h5 class="alert-heading">⚠️ Warning!</h5>
-                        <p class="mb-0">You are about to delete this invoice. This action cannot be undone.</p>
+{% block billing_content %}
+<section class="delete-confirmation-bg py-5 d-flex align-items-center justify-content-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-8">
+                
+                <!-- Confirmation Card -->
+                <div class="card-glass-danger shadow-xl border-0 rounded-4 overflow-hidden">
+                    
+                    <!-- Warning Header -->
+                    <div class="card-header-danger">
+                        <div class="warning-icon-wrapper">
+                            <div class="warning-icon-pulse"></div>
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <h4 class="mb-0 mt-3">Confirm Deletion</h4>
                     </div>
 
-                    <div class="invoice-details mb-4">
-                        <h5>Invoice Details:</h5>
-                        <table class="table table-sm">
-                            <tr>
-                                <th width="40%">Invoice Number:</th>
-                                <td><strong>{{ invoice.invoice_number }}</strong></td>
-                            </tr>
-                            <tr>
-                                <th>Party:</th>
-                                <td>{{ invoice.party.name }}</td>
-                            </tr>
-                            <tr>
-                                <th>Date:</th>
-                                <td>{{ invoice.date|date:"d M Y" }}</td>
-                            </tr>
-                            <tr>
-                                <th>Total Amount:</th>
-                                <td><strong>₹{{ invoice.total_amount|floatformat:2 }}</strong></td>
-                            </tr>
-                            <tr>
-                                <th>Status:</th>
-                                <td>
-                                    {% if invoice.is_paid %}
-                                        <span class="badge bg-success">Paid</span>
-                                    {% else %}
-                                        <span class="badge bg-warning">Pending</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>Total Items:</th>
-                                <td>{{ total_items_count }}</td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    {% if tracked_items_count > 0 %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> 
-                        <strong>Stock Restoration:</strong> 
-                        {{ tracked_items_count }} tracked item(s) will have their stock quantities restored to inventory.
-                    </div>
-                    {% endif %}
-
-                    <div class="d-flex justify-content-between mt-4">
-                        <a href="{% url 'billing:invoice_detail' invoice.id %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
+                    <!-- Card Body -->
+                    <div class="card-body p-4">
                         
-                        <form method="post" class="d-inline">
+                        <!-- Challan Info Box -->
+                        <div class="challan-info-box mb-4">
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="bi bi-file-earmark-text"></i> Challan Number
+                                </span>
+                                <span class="info-value">{{ challan.challan_number }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="bi bi-person"></i> Party
+                                </span>
+                                <span class="info-value">{{ challan.party.name }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="bi bi-calendar3"></i> Date
+                                </span>
+                                <span class="info-value">{{ challan.date|date:"d M Y" }}</span>
+                            </div>
+                            {% if challan.invoice %}
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="bi bi-receipt"></i> Related Invoice
+                                </span>
+                                <span class="info-value">{{ challan.invoice.invoice_number }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="bi bi-box-seam"></i> Total Items
+                                </span>
+                                <span class="info-value">{{ items_count }} item(s)</span>
+                            </div>
+                        </div>
+
+                        <!-- Warning Message -->
+                        <div class="warning-message">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <div>
+                                <strong>Warning:</strong> This action cannot be undone. The challan will be permanently deleted from the system.
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <form method="post" id="deleteForm">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Yes, Delete Invoice
-                            </button>
+                            <div class="action-buttons-group">
+                                <button type="button" 
+                                        class="btn btn-cancel" 
+                                        onclick="window.location.href='{% url 'billing:challan_list' %}'">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Cancel
+                                </button>
+                                <button type="submit" 
+                                        class="btn btn-delete"
+                                        id="confirmDeleteBtn">
+                                    <i class="bi bi-trash me-2"></i>
+                                    Yes, Delete Challan
+                                </button>
+                            </div>
                         </form>
+
+                        <!-- Safety Check -->
+                        <div class="safety-check mt-4">
+                            <label class="form-check-label">
+                                <input type="checkbox" class="form-check-input" id="confirmCheck">
+                                <span class="ms-2">I understand this action is permanent</span>
+                            </label>
+                        </div>
+
                     </div>
                 </div>
+
+                <!-- Help Text -->
+                <div class="help-text-box mt-3">
+                    <i class="bi bi-lightbulb"></i>
+                    <span>If you want to keep the challan for reference, consider marking it as inactive instead of deleting.</span>
+                </div>
+
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<style>
+/* ========================================
+   Base Styles
+======================================== */
+.delete-confirmation-bg {
+    background: linear-gradient(135deg, #0a0a1f 0%, #121235 50%, #001f3f 100%);
+    min-height: 100vh;
+    position: relative;
+}
+
+.delete-confirmation-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 30% 50%, rgba(220, 53, 69, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(220, 53, 69, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* ========================================
+   Glass Card with Danger Theme
+======================================== */
+.card-glass-danger {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    box-shadow: 0 8px 32px rgba(220, 53, 69, 0.2);
+}
+
+/* ========================================
+   Card Header with Warning Icon
+======================================== */
+.card-header-danger {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(220, 53, 69, 0.05) 100%);
+    border-bottom: 2px solid rgba(220, 53, 69, 0.3);
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+}
+
+.card-header-danger h4 {
+    color: #ff6b7a;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* Warning Icon Animation */
+.warning-icon-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.warning-icon-wrapper i {
+    font-size: 4rem;
+    color: #dc3545;
+    position: relative;
+    z-index: 2;
+    animation: shake 2s ease-in-out infinite;
+}
+
+.warning-icon-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: rgba(220, 53, 69, 0.3);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes shake {
+    0%, 100% { transform: rotate(0deg); }
+    10%, 30%, 50%, 70%, 90% { transform: rotate(-5deg); }
+    20%, 40%, 60%, 80% { transform: rotate(5deg); }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0;
+    }
+}
+
+/* ========================================
+   Challan Info Box
+======================================== */
+.challan-info-box {
+    background: rgba(0, 194, 255, 0.05);
+    border: 1px solid rgba(0, 194, 255, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-label i {
+    color: #00c2ff;
+}
+
+.info-value {
+    color: #fff;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* ========================================
+   Warning Message
+======================================== */
+.warning-message {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.warning-message i {
+    color: #ffc107;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.warning-message div {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+}
+
+.warning-message strong {
+    color: #ffc107;
+}
+
+/* ========================================
+   Action Buttons
+======================================== */
+.action-buttons-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.action-buttons-group .btn {
+    flex: 1;
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-cancel {
+    background: rgba(108, 117, 125, 0.1);
+    border: 2px solid rgba(108, 117, 125, 0.3);
+    color: #adb5bd;
+}
+
+.btn-cancel:hover {
+    background: rgba(108, 117, 125, 0.2);
+    border-color: #6c757d;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-delete {
+    background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+}
+
+.btn-delete:hover:not(:disabled) {
+    background: linear-gradient(135deg, #c82333 0%, #a71d2a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.5);
+}
+
+.btn-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ========================================
+   Safety Check
+======================================== */
+.safety-check {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    text-align: center;
+}
+
+.safety-check .form-check-label {
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.safety-check .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    border: 2px solid rgba(0, 194, 255, 0.5);
+    background: transparent;
+}
+
+.safety-check .form-check-input:checked {
+    background-color: #00c2ff;
+    border-color: #00c2ff;
+}
+
+.safety-check .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(0, 194, 255, 0.25);
+}
+
+/* ========================================
+   Help Text
+======================================== */
+.help-text-box {
+    background: rgba(0, 194, 255, 0.08);
+    border: 1px solid rgba(0, 194, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.help-text-box i {
+    color: #00c2ff;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.help-text-box span {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* ========================================
+   Responsive Design
+======================================== */
+@media (max-width: 576px) {
+    .action-buttons-group {
+        flex-direction: column-reverse;
+    }
+    
+    .warning-icon-wrapper i {
+        font-size: 3rem;
+    }
+    
+    .card-header-danger {
+        padding: 1.5rem;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheck = document.getElementById('confirmCheck');
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    // Initially disable delete button
+    deleteBtn.disabled = true;
+    
+    // Enable/disable delete button based on checkbox
+    confirmCheck.addEventListener('change', function() {
+        deleteBtn.disabled = !this.checked;
+    });
+    
+    // Add confirmation on form submit
+    deleteForm.addEventListener('submit', function(e) {
+        if (!confirmCheck.checked) {
+            e.preventDefault();
+            alert('Please confirm that you understand this action is permanent.');
+            return false;
+        }
+        
+        // Show loading state
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+        
+        return true;
+    });
+    
+    // Prevent accidental navigation
+    let formSubmitted = false;
+    deleteForm.addEventListener('submit', function() {
+        formSubmitted = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (confirmCheck.checked && !formSubmitted) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+});
+</script>
 {% endblock %}

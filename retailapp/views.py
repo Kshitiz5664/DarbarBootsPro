@@ -1,7 +1,7 @@
 # retailapp/views.py - PART 1 of 3
 # COMPLETE FIXED VERSION - IMPORTS, DECORATORS & HELPER FUNCTIONS
 # Copy this to start your views.py file
-
+from django.core.exceptions import ValidationError
 from django.views import View
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render, redirect, get_object_or_404
@@ -980,9 +980,12 @@ class RetailReturnCreateView(View):
     # This fixes the "RetailReturn has no invoice" error
 
     def post(self, request, invoice_id):
+        """
+        ✅ FINAL VERSION: Create return with full inventory integration.
+        """
         invoice = self.get_invoice(invoice_id)
         
-        # ✅ Create mutable copy of POST data
+        # Create mutable copy of POST data
         post_data = request.POST.copy()
         item_id = post_data.get('item')
         quantity_str = post_data.get('quantity', '1')
@@ -998,90 +1001,86 @@ class RetailReturnCreateView(View):
         except (ValueError, TypeError):
             amount = Decimal('0')
         
-        # Auto-calculate amount if item selected but amount is zero
-        if item_id and (amount <= 0 or not amount_str or amount_str.strip() == ''):
+        # ✅ STEP 1: Auto-calculate amount if item selected
+        invoice_item_obj = None
+        if item_id:
             try:
-                invoice_item = RetailInvoiceItem.objects.get(
+                invoice_item_obj = RetailInvoiceItem.objects.get(
                     id=int(item_id),
                     invoice=invoice,
                     is_active=True
                 )
                 
-                if invoice_item.quantity > 0 and invoice_item.total:
-                    per_unit_price = (invoice_item.total / invoice_item.quantity).quantize(Decimal('0.01'))
-                    calculated_amount = (per_unit_price * quantity).quantize(Decimal('0.01'))
-                    
-                    post_data['amount'] = str(calculated_amount)
-                    
-                    logger.info(
-                        f"✅ Auto-calculated return amount: "
-                        f"Item: {invoice_item.display_name}, "
-                        f"Per unit: ₹{per_unit_price}, "
-                        f"Qty: {quantity}, "
-                        f"Total: ₹{calculated_amount}"
-                    )
+                # Auto-calculate if amount not provided or zero
+                if invoice_item_obj.quantity > 0 and invoice_item_obj.total:
+                    if amount <= 0 or not amount_str or amount_str.strip() == '':
+                        per_unit_price = (invoice_item_obj.total / invoice_item_obj.quantity).quantize(Decimal('0.01'))
+                        calculated_amount = (per_unit_price * quantity).quantize(Decimal('0.01'))
+                        post_data['amount'] = str(calculated_amount)
+                        amount = calculated_amount
+                        
+                        logger.info(
+                            f"✅ Auto-calculated return amount: "
+                            f"Item: {invoice_item_obj.display_name}, "
+                            f"Per unit: ₹{per_unit_price}, Qty: {quantity}, Total: ₹{calculated_amount}"
+                        )
+            except RetailInvoiceItem.DoesNotExist:
+                messages.error(request, 'Selected invoice item not found.')
+                form = RetailReturnForm(post_data, request.FILES, invoice=invoice)
+                return render(request, self.template_name, {'form': form, 'invoice': invoice})
             except Exception as e:
-                logger.error(f"Error calculating return amount: {e}", exc_info=True)
+                logger.error(f"Error processing invoice item: {e}", exc_info=True)
         
-        # ✅ FIX: Create form with modified data
-        form = RetailReturnForm(post_data, request.FILES, invoice=invoice)
-        
-        # ✅ CRITICAL: Check validity WITHOUT triggering model validation
-        # We manually validate to avoid the invoice access error
-        if not form.is_bound:
-            messages.error(request, 'Form data is invalid.')
-            return render(request, self.template_name, {
-                'form': form,
-                'invoice': invoice,
-            })
-        
-        # ✅ Manual field validation (bypass form.is_valid() which calls model.clean())
+        # ✅ STEP 2: Manual validation (before form)
         errors = {}
         
-        # Validate required fields
         if not post_data.get('return_date'):
             errors['return_date'] = ['Return date is required.']
         
-        if not post_data.get('quantity') or int(post_data.get('quantity', 0)) <= 0:
+        if not post_data.get('quantity') or quantity <= 0:
             errors['quantity'] = ['Quantity must be at least 1.']
         
-        if not post_data.get('amount') or Decimal(post_data.get('amount', '0')) <= 0:
+        if not post_data.get('amount') or amount <= 0:
             errors['amount'] = ['Return amount must be greater than zero.']
         
-        # If there are validation errors, show them
+        # Validate return quantity against available quantity
+        if invoice_item_obj:
+            prior_returns = RetailReturn.objects.filter(
+                item=invoice_item_obj,
+                is_active=True
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            available = max(invoice_item_obj.quantity - prior_returns, 0)
+            
+            if quantity > available:
+                errors['quantity'] = [
+                    f'Cannot return {quantity} unit(s). '
+                    f'Only {available} unit(s) available for return.'
+                ]
+        
+        # Show validation errors
         if errors:
             for field, error_list in errors.items():
                 for error in error_list:
-                    messages.error(request, f"{field.title()}: {error}")
+                    messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
             
-            return render(request, self.template_name, {
-                'form': form,
-                'invoice': invoice,
-            })
+            form = RetailReturnForm(post_data, request.FILES, invoice=invoice)
+            return render(request, self.template_name, {'form': form, 'invoice': invoice})
         
+        # ✅ STEP 3: Create return with proper transaction
         try:
             with transaction.atomic():
-                # ✅ Create instance WITHOUT calling form.save()
-                # This avoids triggering model validation
-                retail_return = RetailReturn()
+                # Create return instance with invoice assigned immediately
+                retail_return = RetailReturn(invoice=invoice)
                 
-                # ✅ Set fields from form data
-                retail_return.invoice = invoice
+                # Set item reference
+                if invoice_item_obj:
+                    retail_return.item = invoice_item_obj
                 
-                # Set item if provided
-                if item_id:
-                    try:
-                        retail_return.item = RetailInvoiceItem.objects.get(
-                            id=int(item_id),
-                            invoice=invoice,
-                            is_active=True
-                        )
-                    except RetailInvoiceItem.DoesNotExist:
-                        raise ValueError(f"Selected invoice item not found")
-                
+                # Set other fields
                 retail_return.return_date = post_data.get('return_date')
-                retail_return.quantity = int(post_data.get('quantity', 1))
-                retail_return.amount = Decimal(post_data.get('amount', '0'))
+                retail_return.quantity = quantity
+                retail_return.amount = amount
                 retail_return.reason = post_data.get('reason', '').strip()
                 
                 # Handle image upload
@@ -1091,38 +1090,31 @@ class RetailReturnCreateView(View):
                 retail_return.created_by = request.user
                 retail_return.updated_by = request.user
                 
-                # ✅ Validate amount
-                if retail_return.amount <= 0:
-                    raise ValueError("Return amount must be greater than zero")
+                # ✅ Validate with invoice already set
+                try:
+                    retail_return.full_clean()
+                except ValidationError as ve:
+                    error_messages = []
+                    if hasattr(ve, 'message_dict'):
+                        for field, errors_list in ve.message_dict.items():
+                            error_messages.extend(errors_list)
+                    else:
+                        error_messages.append(str(ve))
+                    raise ValueError("; ".join(error_messages))
                 
-                # ✅ Manual validation: Check return quantity
-                if retail_return.item:
-                    remaining_qty = (
-                        retail_return.item.quantity -
-                        RetailReturn.objects.filter(
-                            item=retail_return.item,
-                            is_active=True
-                        ).aggregate(total=Sum('quantity'))['total'] or 0
-                    )
-
-                    if retail_return.quantity > remaining_qty:
-                        raise ValueError(
-                            f"Return quantity ({retail_return.quantity}) exceeds "
-                            f"remaining invoice quantity ({remaining_qty})"
-                        )
-                
-                # ✅ Save with skip_validation flag
-                retail_return.save(skip_validation=True)
+                # Save the return
+                retail_return.save()
                 
                 logger.info(
                     f"✅ Return created: ID={retail_return.id}, "
-                    f"Amount=₹{retail_return.amount}, "
-                    f"Quantity={retail_return.quantity}"
+                    f"Invoice={invoice.invoice_number}, "
+                    f"Amount=₹{retail_return.amount}, Quantity={retail_return.quantity}"
                 )
                 
-                # Restore stock if linked to inventory item
+                # ✅ STEP 4: Restore stock using inventory manager
                 if retail_return.item and retail_return.item.item:
                     try:
+                        # Verify item still exists in inventory
                         item_exists = Item.objects.filter(
                             id=retail_return.item.item.id,
                             is_active=True,
@@ -1131,22 +1123,24 @@ class RetailReturnCreateView(View):
                         
                         if not item_exists:
                             logger.warning(
-                                f"Cannot restore stock for return {retail_return.id}: "
+                                f"⚠️ Cannot restore stock for return {retail_return.id}: "
                                 f"Item {retail_return.item.item.id} not found or inactive"
                             )
                             messages.warning(
                                 request,
-                                f"⚠️ Item no longer exists in inventory. "
-                                f"Return recorded but stock not restored."
+                                f"⚠️ Return recorded but item no longer exists in inventory. "
+                                f"Stock not restored."
                             )
                         else:
+                            # Prepare items for inventory manager
                             return_items = [{
                                 'item_id': retail_return.item.item.id,
                                 'quantity': retail_return.quantity,
                                 'return_item_id': retail_return.id
                             }]
                             
-                            stock_return_result = add_items_for_return(
+                            # Call inventory manager to restore stock
+                            stock_result = add_items_for_return(
                                 return_items=return_items,
                                 invoice_type='retail',
                                 invoice_id=invoice.id,
@@ -1154,24 +1148,25 @@ class RetailReturnCreateView(View):
                                 created_by=request.user
                             )
                             
-                            if not stock_return_result['success']:
-                                logger.error(f"Stock return failed: {stock_return_result['errors']}")
-                                raise Exception(
-                                    "Stock restoration failed: " + 
-                                    ", ".join(stock_return_result['errors'])
-                                )
-                            else:
-                                logger.info(
-                                    f"✅ Return processed for invoice {invoice.invoice_number}. "
-                                    f"Stock returned: {retail_return.item.item.name} "
-                                    f"x{retail_return.quantity}"
-                                )
+                            if not stock_result['success']:
+                                error_msg = ", ".join(stock_result['errors'])
+                                logger.error(f"❌ Stock restoration failed: {error_msg}")
+                                raise Exception(f"Stock restoration failed: {error_msg}")
+                            
+                            logger.info(
+                                f"✅ Stock restored successfully: "
+                                f"{', '.join(stock_result['items_processed'])} "
+                                f"(Invoice: {invoice.invoice_number})"
+                            )
                     
-                    except Exception as e:
-                        logger.error(f"Error restoring stock for return: {e}", exc_info=True)
-                        raise
+                    except Exception as stock_error:
+                        logger.error(
+                            f"❌ Error restoring stock for return {retail_return.id}: {stock_error}",
+                            exc_info=True
+                        )
+                        raise Exception(f"Failed to restore inventory: {str(stock_error)}")
             
-            # Success
+            # ✅ STEP 5: Success message
             success_msg = (
                 f'✅ Return of ₹{retail_return.amount:,.2f} recorded successfully! '
                 f'Quantity: {retail_return.quantity}'
@@ -1181,24 +1176,21 @@ class RetailReturnCreateView(View):
                 success_msg += f' | Stock restored: {retail_return.item.item.name}'
             
             messages.success(request, success_msg)
+            
+            # Redirect to invoice detail
             return redirect('retailapp:invoice_detail', invoice_id=invoice.id)
             
         except ValueError as ve:
             logger.error(f"Validation error creating return: {ve}", exc_info=True)
-            messages.error(request, f'❌ {str(ve)}')
-            return render(request, self.template_name, {
-                'form': form,
-                'invoice': invoice,
-            })
+            messages.error(request, f'❌ Validation Error: {str(ve)}')
+            form = RetailReturnForm(post_data, request.FILES, invoice=invoice)
+            return render(request, self.template_name, {'form': form, 'invoice': invoice})
             
         except Exception as e:
             logger.error(f"Error creating return: {e}", exc_info=True)
             messages.error(request, f'❌ Error creating return: {str(e)}')
-            return render(request, self.template_name, {
-                'form': form,
-                'invoice': invoice,
-            })
-
+            form = RetailReturnForm(post_data, request.FILES, invoice=invoice)
+            return render(request, self.template_name, {'form': form, 'invoice': invoice})
 
 # ================================================================
 # PDF DOWNLOAD VIEW

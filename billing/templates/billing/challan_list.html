@@ -1,57 +1,962 @@
 {% extends "billing/base.html" %}
+{% load static %}
+
 {% block page_title %}Delivery Challans{% endblock %}
+
 {% block action_button %}
-<a href="{% url 'billing:challan_create' %}" class="btn btn-success">+ New Challan</a>
+<div class="d-flex gap-2">
+    <a href="{% url 'billing:challan_create' %}" class="btn btn-gradient-purple shadow-lg px-4">
+        <i class="bi bi-plus-circle me-2"></i> New Challan
+    </a>
+    <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#filterModal">
+        <i class="bi bi-funnel me-2"></i> Filter
+    </button>
+</div>
 {% endblock %}
 
 {% block billing_content %}
-<div class="table-responsive">
-    <table class="table table-hover table-striped align-middle">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Invoice</th>
-                <th>Party</th>
-                <th>Date</th>
-                <th>Total Items</th>
-                <th class="text-center">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for challan in challans %}
-            <tr>
-                <td>{{ challan.id }}</td>
-                <td>
-                    {% if challan.invoice %}
-                        {{ challan.invoice.invoice_number }}
-                    {% else %}
-                        <span class="text-muted">No Invoice</span>
-                    {% endif %}
-                </td>
-                <td>{{ challan.party.name }}</td>
-                <td>{{ challan.date|date:"d M, Y" }}</td>
-                <td>{{ challan.challan_items.count }}</td>
-
-                <td class="text-center">
-                    <div class="btn-group" role="group">
-                        <a href="{% url 'billing:challan_detail' challan.id %}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye"></i> View
-                        </a>
-                        <a href="{% url 'billing:challan_update' challan.id %}" class="btn btn-sm btn-outline-warning">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                        <a href="{% url 'billing:challan_delete' challan.id %}" 
-                           class="btn btn-sm btn-outline-danger"
-                           onclick="return confirm('Are you sure you want to delete this challan?');">
-                            <i class="bi bi-trash"></i> Delete
-                        </a>
+<section class="challan-bg py-5">
+    <div class="container-fluid">
+        
+        <!-- Search & Stats Bar -->
+        <div class="row mb-4 g-3">
+            <!-- Search Box -->
+            <div class="col-lg-6">
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" 
+                           id="searchChallan" 
+                           class="form-control ps-5" 
+                           placeholder="Search by challan number, party name, invoice...">
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="col-lg-6">
+                <div class="d-flex gap-3 justify-content-lg-end flex-wrap">
+                    <div class="stat-card stat-card-purple">
+                        <i class="bi bi-truck"></i>
+                        <div>
+                            <div class="stat-value">{{ challans.count|default:0 }}</div>
+                            <div class="stat-label">Total Challans</div>
+                        </div>
                     </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No challans created.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    <div class="stat-card stat-card-purple">
+                        <i class="bi bi-box-seam"></i>
+                        <div>
+                            <div class="stat-value">{{ total_items|default:0 }}</div>
+                            <div class="stat-label">Items</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Challan Table Card -->
+        <div class="card-glass shadow-xl border-0 rounded-4 overflow-hidden">
+            <div class="card-header-custom">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="bi bi-truck-flatbed me-2"></i>
+                    Delivery Challan Records
+                </h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-purple" onclick="exportChallans()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button class="btn btn-sm btn-outline-purple" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0" id="challanTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="number">
+                                    <div class="th-content">
+                                        # <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="challan">
+                                    <div class="th-content">
+                                        Challan No. <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="party">
+                                    <div class="th-content">
+                                        Party <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="invoice">
+                                    <div class="th-content">
+                                        Invoice <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="date">
+                                    <div class="th-content">
+                                        Date <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="text-center">Items</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for challan in challans %}
+                            <tr class="challan-row fade-in" data-challan-id="{{ challan.pk }}" style="animation-delay: {{ forloop.counter0 }}00ms;">
+                                <td class="text-muted">
+                                    <span class="row-number">{{ forloop.counter }}</span>
+                                </td>
+                                <td>
+                                    <div class="challan-number">
+                                        <i class="bi bi-file-earmark-text-fill text-purple me-2"></i>
+                                        <strong>{{ challan.challan_number|default:"N/A" }}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="party-info">
+                                        <div class="party-name">{{ challan.party.name }}</div>
+                                        {% if challan.party.phone %}
+                                        <small class="text-muted">
+                                            <i class="bi bi-telephone"></i> {{ challan.party.phone }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if challan.invoice %}
+                                    <a href="{% url 'billing:invoice_detail' challan.invoice.pk %}" 
+                                       class="invoice-link">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                        {{ challan.invoice.invoice_number }}
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-dash-circle"></i> No Invoice
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="date-display">
+                                        <i class="bi bi-calendar3 text-muted me-1"></i>
+                                        {{ challan.date|date:"d M Y" }}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="items-badge">
+                                        <i class="bi bi-box"></i>
+                                        {{ challan.challan_items.count }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <!-- View -->
+                                        <a href="{% url 'billing:challan_detail' challan.pk %}" 
+                                           class="action-btn view-btn" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View Challan">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+
+                                        <!-- Edit -->
+                                        <a href="{% url 'billing:challan_update' challan.pk %}" 
+                                           class="action-btn edit-btn" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Edit Challan">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+
+                                        <!-- Download PDF -->
+                                        <a href="{% url 'billing:challan_pdf' challan.pk %}"
+                                           class="action-btn download-btn"
+                                           data-bs-toggle="tooltip" 
+                                           title="Download PDF"
+                                           target="_blank">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+
+                                        <!-- Delete -->
+                                        <a href="{% url 'billing:challan_delete' challan.pk %}" 
+                                           class="action-btn delete-btn" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Delete Challan"
+                                           onclick="return confirmDelete('{{ challan.challan_number }}');">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    <div class="empty-state-content">
+                                        <i class="bi bi-truck"></i>
+                                        <h5>No Challans Found</h5>
+                                        <p class="text-muted">Start by creating your first delivery challan</p>
+                                        <a href="{% url 'billing:challan_create' %}" class="btn btn-gradient-purple mt-3">
+                                            <i class="bi bi-plus-circle me-2"></i> Create Challan
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="card-footer-custom">
+                <nav aria-label="Challan pagination">
+                    <ul class="pagination mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-funnel me-2"></i> Filter Challans
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="filterForm" method="get">
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="date_from" placeholder="From">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="date_to" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Search</label>
+                        <input type="text" class="form-control" name="search" placeholder="Challan number, party name...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-purple" onclick="document.getElementById('filterForm').submit();">Apply Filters</button>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+/* ========================================
+   Base Styles - Purple Theme
+======================================== */
+.challan-bg {
+    background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #16003b 100%);
+    min-height: 100vh;
+    position: relative;
+}
+
+.challan-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(111, 66, 193, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(111, 66, 193, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* ========================================
+   Glass Morphism Cards
+======================================== */
+.card-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(111, 66, 193, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card-glass:hover {
+    border-color: rgba(111, 66, 193, 0.3);
+    box-shadow: 0 8px 32px rgba(111, 66, 193, 0.15);
+}
+
+.card-header-custom {
+    background: rgba(111, 66, 193, 0.05);
+    border-bottom: 1px solid rgba(111, 66, 193, 0.1);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.card-header-custom h5 {
+    color: #6f42c1;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.card-footer-custom {
+    background: rgba(111, 66, 193, 0.03);
+    border-top: 1px solid rgba(111, 66, 193, 0.1);
+    padding: 1rem 1.5rem;
+}
+
+/* ========================================
+   Search Box
+======================================== */
+.search-box {
+    position: relative;
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6f42c1;
+    font-size: 1.1rem;
+    z-index: 2;
+}
+
+.search-box input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    color: #fff;
+    padding-left: 3rem;
+    border-radius: 50px;
+    height: 50px;
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #6f42c1;
+    box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.15);
+    color: #fff;
+    outline: none;
+}
+
+.search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ========================================
+   Quick Stats Cards - Purple Theme
+======================================== */
+.stat-card-purple {
+    background: rgba(111, 66, 193, 0.08);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+    min-width: 140px;
+}
+
+.stat-card-purple:hover {
+    background: rgba(111, 66, 193, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(111, 66, 193, 0.2);
+}
+
+.stat-card-purple i {
+    font-size: 1.5rem;
+    color: #6f42c1;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #6f42c1;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   Table Styles
+======================================== */
+.table-custom {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.table-custom thead {
+    background: rgba(111, 66, 193, 0.08);
+    border-bottom: 2px solid rgba(111, 66, 193, 0.3);
+}
+
+.table-custom thead th {
+    color: #6f42c1;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+}
+
+.th-content {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.sortable:hover {
+    color: #fff !important;
+    background: rgba(111, 66, 193, 0.1);
+}
+
+.table-custom tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.table-custom tbody tr:hover {
+    background: rgba(111, 66, 193, 0.05);
+    transform: scale(1.002);
+}
+
+.table-custom tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border: none;
+}
+
+/* ========================================
+   Table Content Styles
+======================================== */
+.row-number {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    background: rgba(111, 66, 193, 0.1);
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.challan-number {
+    display: flex;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}
+
+.party-info .party-name {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 0.15rem;
+}
+
+.party-info small {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.invoice-link {
+    color: #17a2b8;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.invoice-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.date-display {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.items-badge {
+    background: rgba(111, 66, 193, 0.15);
+    color: #6f42c1;
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(111, 66, 193, 0.3);
+}
+
+/* ========================================
+   Action Buttons
+======================================== */
+.action-buttons {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: 1.5px solid;
+    background: transparent;
+    font-size: 0.9rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.action-btn:hover::before {
+    width: 100%;
+    height: 100%;
+}
+
+.action-btn i {
+    position: relative;
+    z-index: 1;
+}
+
+/* View Button */
+.view-btn {
+    border-color: #007bff;
+    color: #007bff;
+}
+.view-btn::before {
+    background: #007bff;
+}
+.view-btn:hover {
+    color: white;
+    border-color: #0056b3;
+    box-shadow: 0 0 12px rgba(0, 123, 255, 0.4);
+}
+
+/* Edit Button */
+.edit-btn {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+.edit-btn::before {
+    background: #6c757d;
+}
+.edit-btn:hover {
+    color: white;
+    border-color: #545b62;
+    box-shadow: 0 0 12px rgba(108, 117, 125, 0.4);
+}
+
+/* Download Button */
+.download-btn {
+    border-color: #6f42c1;
+    color: #6f42c1;
+}
+.download-btn::before {
+    background: #6f42c1;
+}
+.download-btn:hover {
+    color: white;
+    border-color: #5a32a3;
+    box-shadow: 0 0 12px rgba(111, 66, 193, 0.4);
+}
+
+/* Delete Button */
+.delete-btn {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+.delete-btn::before {
+    background: #dc3545;
+}
+.delete-btn:hover {
+    color: white;
+    border-color: #bd2130;
+    box-shadow: 0 0 12px rgba(220, 53, 69, 0.4);
+}
+
+/* ========================================
+   Empty State
+======================================== */
+.empty-state {
+    padding: 4rem 2rem !important;
+    background: rgba(111, 66, 193, 0.02);
+}
+
+.empty-state-content {
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.empty-state-content i {
+    font-size: 4rem;
+    color: rgba(111, 66, 193, 0.3);
+    margin-bottom: 1rem;
+}
+
+.empty-state-content h5 {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-content p {
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 1.5rem;
+}
+
+/* ========================================
+   Pagination
+======================================== */
+.pagination {
+    gap: 0.5rem;
+}
+
+.page-link {
+    background: rgba(111, 66, 193, 0.08);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    color: #6f42c1;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.page-link:hover {
+    background: rgba(111, 66, 193, 0.15);
+    border-color: #6f42c1;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.page-item.active .page-link {
+    background: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+    font-weight: 600;
+}
+
+/* ========================================
+   Buttons
+======================================== */
+.btn-gradient-purple {
+    background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+}
+
+.btn-gradient-purple:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
+    background: linear-gradient(135deg, #8357d4 0%, #6f42c1 100%);
+}
+
+.btn-outline-purple {
+    border-color: #6f42c1;
+    color: #6f42c1;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-purple:hover {
+    background: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+    box-shadow: 0 0 15px rgba(111, 66, 193, 0.4);
+}
+
+.btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+/* ========================================
+   Modal Styles
+======================================== */
+.modal-glass {
+    background: rgba(26, 10, 46, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    color: #fff;
+}
+
+.modal-glass .form-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.modal-glass .form-control,
+.modal-glass .form-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    color: #fff;
+}
+
+.modal-glass .form-control:focus,
+.modal-glass .form-select:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #6f42c1;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.15);
+}
+
+.modal-glass .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========================================
+   Animations
+======================================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+}
+
+/* ========================================
+   Responsive Design
+======================================== */
+@media (max-width: 992px) {
+    .stat-card-purple {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    .action-buttons {
+        gap: 0.3rem;
+    }
+    
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+    
+    .card-header-custom {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .table-custom {
+        font-size: 0.85rem;
+    }
+    
+    .search-box input {
+        height: 45px;
+        font-size: 0.9rem;
+    }
+}
+
+/* ========================================
+   Print Styles
+======================================== */
+@media print {
+    .challan-bg::before,
+    .action-buttons,
+    .card-header-custom > div,
+    .search-box,
+    .stat-card-purple,
+    .pagination,
+    .btn,
+    button {
+        display: none !important;
+    }
+    
+    .card-glass {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .table-custom {
+        color: #000 !important;
+    }
+    
+    .table-custom thead {
+        background: #f8f9fa !important;
+    }
+}
+</style>
+
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchChallan');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('.challan-row');
+            
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Table sorting
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('.challan-row'));
+            const index = Array.from(this.parentElement.children).indexOf(this);
+            const isAscending = this.classList.contains('sort-asc');
+            
+            rows.sort((a, b) => {
+                const aValue = a.cells[index].textContent.trim();
+                const bValue = b.cells[index].textContent.trim();
+                
+                // Try numeric comparison
+                const aNum = parseFloat(aValue.replace(/[^\d.-]/g, ''));
+                const bNum = parseFloat(bValue.replace(/[^\d.-]/g, ''));
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAscending ? bNum - aNum : aNum - bNum;
+                }
+                
+                // String comparison
+                if (isAscending) {
+                    return bValue.localeCompare(aValue, undefined, {numeric: true});
+                } else {
+                    return aValue.localeCompare(bValue, undefined, {numeric: true});
+                }
+            });
+            
+            // Toggle sort direction
+            sortableHeaders.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            this.classList.toggle('sort-asc', !isAscending);
+            this.classList.toggle('sort-desc', isAscending);
+            
+            // Reorder rows
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+});
+
+// Confirm delete
+function confirmDelete(challanNumber) {
+    return confirm(
+        `⚠️ Delete Challan ${challanNumber}?\n\n` +
+        `This action cannot be undone. Continue?`
+    );
+}
+
+// Export challans
+function exportChallans() {
+    alert('Export functionality - Implement CSV export');
+}
+</script>
 {% endblock %}

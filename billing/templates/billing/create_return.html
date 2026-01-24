@@ -1,7 +1,7 @@
 {% extends "billing/base.html" %}
 {% load static %}
 
-{% block page_title %}Create Return{% endblock %}
+{% block page_title %}Process Return{% endblock %}
 
 {% block action_button %}
 <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
@@ -10,170 +10,299 @@
 {% endblock %}
 
 {% block billing_content %}
+<section class="invoice-bg">
 <div class="row justify-content-center">
-    <div class="col-lg-8 mb-5"><!-- Added bottom margin -->
+    <div class="col-lg-10">
         <div class="card form-card shadow-lg">
             <div class="form-header">
                 <h3 class="form-title">
-                    <i class="bi bi-arrow-return-left"></i> Record Return
+                    <i class="bi bi-arrow-return-left"></i> Create Wholesale Return
                 </h3>
-                <p class="form-subtitle">Create a return entry for an invoice</p>
+                <p class="form-subtitle">Select invoice and items to process return</p>
             </div>
 
-            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+            <!-- Error Messages -->
+            {% if form.errors or formset.errors or formset.non_form_errors %}
+            <div class="form-section" style="padding: 20px 30px; background: rgba(220, 53, 69, 0.15); border-bottom: 2px solid #dc3545;">
+                <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.25); border: 2px solid #dc3545;">
+                    <h5 style="color: #ff6b6b; margin-bottom: 10px;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Please correct the following errors:
+                    </h5>
+                    {% if form.errors %}
+                        <ul style="margin: 0; padding-left: 20px; color: #ff6b6b;">
+                            {% for field, errors in form.errors.items %}
+                            <li><strong>{{ field|title }}:</strong> {{ errors|join:", " }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if formset.non_form_errors %}
+                        <ul style="margin: 0; padding-left: 20px; color: #ff6b6b;">
+                            {% for error in formset.non_form_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Success Messages -->
+            {% if messages %}
+            <div class="form-section" style="padding: 20px 30px; padding-bottom: 0;">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" 
+                     style="background: {% if message.tags == 'error' or message.tags == 'danger' %}rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #ff6b6b;{% else %}rgba(76, 175, 80, 0.2); border: 1px solid #4caf50; color: #4caf50;{% endif %}">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Return Form -->
+            <form method="post" enctype="multipart/form-data" id="returnForm">
                 {% csrf_token %}
-                
-                <!-- Return Details Section -->
+
+                <!-- Invoice Selection Section -->
                 <div class="form-section">
                     <h5 class="section-title">
-                        <i class="bi bi-info-circle"></i> Return Information
+                        <i class="bi bi-receipt"></i> Select Invoice
                     </h5>
-                    
+
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="{{ form.invoice.id_for_label }}" class="form-label">
-                                Invoice <span class="text-danger">*</span>
+                            <label class="form-label" for="id_invoice">
+                                Select Invoice <span class="text-danger">*</span>
                             </label>
-                            {{ form.invoice }}
+                            <select name="invoice" class="form-select {% if form.invoice.errors %}is-invalid{% endif %}" id="id_invoice" required>
+                                <option value="">-- Select Invoice --</option>
+                                {% for invoice_obj in form.invoice.field.queryset %}
+                                <option value="{{ invoice_obj.id }}" 
+                                    {% if form.invoice.value|stringformat:"s" == invoice_obj.id|stringformat:"s" %}selected{% endif %}
+                                    {% if invoice %}{% if invoice.id == invoice_obj.id %}selected{% endif %}{% endif %}>
+                                    {{ invoice_obj.invoice_number }} - {{ invoice_obj.party.name }} ({{ invoice_obj.date|date:"d M Y" }})
+                                </option>
+                                {% endfor %}
+                            </select>
                             {% if form.invoice.errors %}
-                                <div class="invalid-feedback d-block">{{ form.invoice.errors.0 }}</div>
+                                <div class="invalid-feedback d-block">
+                                    {{ form.invoice.errors.0 }}
+                                </div>
                             {% endif %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Choose the invoice from which you want to return items
+                            </small>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label for="{{ form.party.id_for_label }}" class="form-label">
-                                Party <span class="text-danger">*</span>
-                            </label>
-                            {{ form.party }}
-                            {% if form.party.errors %}
-                                <div class="invalid-feedback d-block">{{ form.party.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label for="{{ form.return_date.id_for_label }}" class="form-label">
+
+                        <div class="col-md-4">
+                            <label class="form-label" for="{{ form.return_date.id_for_label }}">
                                 Return Date <span class="text-danger">*</span>
                             </label>
                             {{ form.return_date }}
                             {% if form.return_date.errors %}
-                                <div class="invalid-feedback d-block">{{ form.return_date.errors.0 }}</div>
+                                <div class="invalid-feedback d-block">
+                                    {{ form.return_date.errors.0 }}
+                                </div>
                             {% endif %}
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label for="{{ form.amount.id_for_label }}" class="form-label">
-                                Return Amount (₹) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                {{ form.amount }}
+
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check" style="padding-left: 1.5em;">
+                                <input type="checkbox" name="download_pdf" id="id_download_pdf" class="form-check-input">
+                                <label class="form-check-label" for="id_download_pdf" style="color: #b8b8b8;">
+                                    PDF Receipt
+                                </label>
                             </div>
-                            {% if form.amount.errors %}
-                                <div class="invalid-feedback d-block">{{ form.amount.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-12">
-                            <label for="{{ form.reason.id_for_label }}" class="form-label">
-                                Reason for Return
-                            </label>
-                            {{ form.reason }}
-                            {% if form.reason.errors %}
-                                <div class="invalid-feedback d-block">{{ form.reason.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-md-12">
-                            <label for="{{ form.image.id_for_label }}" class="form-label">
-                                Attach Image (Optional)
-                            </label>
-                            <div class="upload-area" id="uploadArea">
-                                <i class="bi bi-cloud-upload upload-icon"></i>
-                                <p class="upload-text">Click or drag image here</p>
-                                {{ form.image }}
-                            </div>
-                            <div id="imagePreview" class="image-preview"></div>
-                            {% if form.image.errors %}
-                                <div class="invalid-feedback d-block">{{ form.image.errors.0 }}</div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <!-- Receipt Options -->
-<div class="col-md-12">
-    <div class="receipt-options-card">
-        <h6 class="options-title">
-            <i class="bi bi-gear"></i> Receipt Options
-        </h6>
-        <div class="row g-3">
-            <div class="col-md-12">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="download_receipt" id="download_receipt">
-                    <label class="form-check-label" for="download_receipt">
-                        <i class="bi bi-download text-warning"></i> Download PDF Receipt
-                    </label>
+
+                <!-- Invoice Details (populated via AJAX) -->
+                <div id="invoiceDetails" class="{% if not invoice %}d-none{% endif %}" style="background: rgba(0, 0, 0, 0.3); padding: 20px; margin: 0 30px; border-radius: 10px; border: 1px solid rgba(255, 193, 7, 0.3);">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="info-card-mini">
+                                <label><i class="bi bi-file-invoice"></i> Invoice</label>
+                                <p id="invoiceNumber">{% if invoice %}{{ invoice.invoice_number }}{% else %}-{% endif %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-card-mini">
+                                <label><i class="bi bi-person"></i> Party</label>
+                                <p id="partyName">{% if invoice %}{{ invoice.party.name }}{% else %}-{% endif %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-card-mini">
+                                <label><i class="bi bi-calendar"></i> Date</label>
+                                <p id="invoiceDate">{% if invoice %}{{ invoice.date|date:"d M Y" }}{% else %}-{% endif %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-card-mini">
+                                <label><i class="bi bi-cash"></i> Total</label>
+                                <p>₹<span id="invoiceTotal">{% if invoice %}{{ invoice.base_amount|floatformat:2 }}{% else %}0.00{% endif %}</span></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+
+                <!-- Return Items Section -->
+                <div id="returnItemsSection" class="{% if not invoice %}d-none{% endif %}">
+                    <div class="form-section" style="padding-top: 20px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="section-title mb-0">
+                                <i class="bi bi-box-seam"></i> Select Items to Return
+                            </h5>
+                            <span class="badge" id="selectedCount" style="background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid #ffc107; padding: 8px 16px; font-size: 0.9rem;">
+                                0 items selected
+                            </span>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table items-table" id="returnItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th width="5%" class="text-center">
+                                            <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                                        </th>
+                                        <th width="30%">Item Name</th>
+                                        <th width="10%">HSN Code</th>
+                                        <th width="10%" class="text-center">Sold</th>
+                                        <th width="12%" class="text-center">Returnable</th>
+                                        <th width="10%" class="text-end">Price/Unit</th>
+                                        <th width="13%" class="text-center">Return Qty</th>
+                                        <th width="10%" class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="returnItemsBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center" style="padding: 30px; color: #b8b8b8;">
+                                            <i class="bi bi-arrow-up-circle" style="font-size: 1.5rem;"></i><br>
+                                            Select an invoice above to see returnable items
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td colspan="7" class="text-end fw-bold">
+                                            <i class="bi bi-calculator"></i> Total Return Amount:
+                                        </td>
+                                        <td class="text-end fw-bold">₹<span id="totalReturnAmount">0.00</span></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Hidden formset management form -->
+                        {{ formset.management_form }}
+                    </div>
+                </div>
+
+                <!-- Additional Details Section -->
+                <div class="form-section" id="additionalDetailsSection" style="{% if not invoice %}display: none;{% endif %}">
+                    <h5 class="section-title">
+                        <i class="bi bi-info-circle"></i> Additional Details
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">
+                                <i class="bi bi-chat-left-text"></i> Reason for Return
+                            </label>
+                            {{ form.reason }}
+                            {% if form.reason.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.reason.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-lightbulb"></i> E.g., Damaged, Wrong item, Quality issue
+                            </small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">
+                                <i class="bi bi-image"></i> Upload Image (Optional)
+                            </label>
+                            {{ form.image }}
+                            {% if form.image.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.image.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-camera"></i> Photo of returned items
+                            </small>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Form Actions -->
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-warning btn-lg">
-                        <i class="bi bi-check-circle"></i> Record Return
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn" disabled>
+                        <i class="bi bi-check-circle"></i> Process Return
                     </button>
                     <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary btn-lg">
                         <i class="bi bi-x-circle"></i> Cancel
                     </a>
+                    
+                    <div class="float-end" style="margin-top: 10px;">
+                        <span class="text-muted" style="font-size: 0.9rem;">
+                            <i class="bi bi-arrow-repeat"></i> Items will be added back to inventory
+                        </span>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
+</section>
 
 <style>
-body {
-    background: linear-gradient(145deg, #121212, #1b1b1b, #101010);
+/* Main Background */
+.invoice-bg {
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
+    padding: 60px 0;
+    min-height: 100vh;
 }
 
-/* --- Card and Layout --- */
+/* Card Styling */
 .form-card {
-    background: rgba(18, 18, 18, 0.9);
+    background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(16px);
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-top: 30px;
     overflow: hidden;
-    animation: fadeIn 0.6s ease-out;
 }
 
-/* --- Header --- */
+/* Header */
 .form-header {
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.1));
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(251, 146, 60, 0.15));
     padding: 30px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .form-title {
     color: #ffc107;
     font-size: 1.8rem;
     font-weight: 700;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 0;
 }
 
 .form-subtitle {
     color: #b8b8b8;
-    margin: 8px 0 0;
     font-size: 0.95rem;
+    margin: 8px 0 0 0;
 }
 
-/* --- Section --- */
+/* Sections */
 .form-section {
     padding: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .section-title {
@@ -186,7 +315,30 @@ body {
     gap: 10px;
 }
 
-/* --- Inputs --- */
+/* Info Cards */
+.info-card-mini {
+    text-align: center;
+    padding: 10px;
+}
+
+.info-card-mini label {
+    color: #ffc107;
+    font-weight: 600;
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-card-mini p {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Form Controls */
 .form-label {
     color: #e0e0e0;
     font-weight: 500;
@@ -194,166 +346,41 @@ body {
     font-size: 0.95rem;
 }
 
-.form-control,
-.form-select,
-textarea.form-control {
-    background: rgba(40, 40, 40, 0.95); /* Darker background for input fields */
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #f5f5f5;
+.form-control, .form-select {
+    background: #000000 !important;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: #ffffff !important;
     border-radius: 10px;
     padding: 12px 16px;
     transition: all 0.3s ease;
 }
 
-.form-control:focus,
-.form-select:focus,
-textarea.form-control:focus {
-    background: rgba(50, 50, 50, 1);
+.form-control.is-invalid, .form-select.is-invalid {
+    border-color: #dc3545 !important;
+    background: rgba(220, 53, 69, 0.1) !important;
+}
+
+.form-control:focus, .form-select:focus {
+    background: #000000 !important;
     border-color: #ffc107;
-    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
-    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.3);
+    color: #ffffff !important;
 }
 
-/* --- Dropdown Menu (Dark Theme) --- */
 select.form-select option {
-    background-color: #1b1b1b; /* Dark dropdown background */
-    color: #f5f5f5;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    padding: 12px 8px !important;
 }
 
-/* --- Input Group --- */
-.input-group-text {
-    background: rgba(255, 193, 7, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #ffc107;
-    font-weight: 600;
-    border-radius: 10px 0 0 10px;
-}
-
-.input-group .form-control {
-    border-radius: 0 10px 10px 0;
-}
-
-/* --- Upload Area --- */
-.upload-area {
-    border: 2px dashed rgba(255, 193, 7, 0.4);
-    border-radius: 12px;
-    padding: 40px;
-    text-align: center;
-    background: rgba(255, 193, 7, 0.05);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.upload-area:hover {
-    border-color: rgba(255, 193, 7, 0.7);
-    background: rgba(255, 193, 7, 0.1);
-}
-
-.upload-area input[type="file"] {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    opacity: 0;
-    cursor: pointer;
-}
-
-.upload-icon {
-    font-size: 3rem;
-    color: #ffc107;
-    display: block;
-    margin-bottom: 10px;
-}
-
-.upload-text {
-    color: #b8b8b8;
-    margin: 0;
-}
-
-/* --- Image Preview --- */
-.image-preview {
-    margin-top: 15px;
-    text-align: center;
-}
-
-.image-preview img {
-    max-width: 100%;
-    max-height: 300px;
-    border-radius: 12px;
-    border: 2px solid rgba(255, 193, 7, 0.3);
-}
-
-/* --- Form Actions --- */
-.form-actions {
-    padding: 30px;
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.03);
-}
-
-/* --- Validation & Feedback --- */
-.text-danger {
-    color: #ff6b6b !important;
-}
-
-.invalid-feedback {
-    color: #ff6b6b;
-    font-size: 0.875rem;
-    margin-top: 5px;
-}
-
-/* --- Animation --- */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@media (max-width: 768px) {
-    .form-header {
-        padding: 20px;
-    }
-    
-    .form-section {
-        padding: 20px;
-    }
-    
-    .form-title {
-        font-size: 1.4rem;
-    }
-}
-/* Receipt Options Card */
-.receipt-options-card {
-    background: rgba(255, 193, 7, 0.1);
-    border: 1px solid rgba(255, 193, 7, 0.3);
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 10px;
-}
-
-.options-title {
-    color: #ffc107;
-    font-weight: 600;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+textarea.form-control {
+    min-height: 100px;
+    resize: vertical;
 }
 
 .form-check-input {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-    width: 3em;
-    height: 1.5em;
+    background-color: #000000;
+    border: 1px solid rgba(255, 193, 7, 0.5);
 }
 
 .form-check-input:checked {
@@ -361,35 +388,487 @@ select.form-select option {
     border-color: #ffc107;
 }
 
-.form-check-label {
+.invalid-feedback {
+    display: block !important;
+    color: #ff6b6b !important;
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+/* Table Styling */
+.items-table {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.items-table thead {
+    background: rgba(255, 193, 7, 0.2);
+}
+
+.items-table thead th {
+    color: #ffc107;
+    font-weight: 600;
+    border: none;
+    padding: 15px 10px;
+    font-size: 0.9rem;
+}
+
+.items-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s ease;
+}
+
+.items-table tbody tr:hover {
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.items-table tbody td {
     color: #e0e0e0;
-    cursor: pointer;
-    margin-left: 10px;
+    padding: 12px 10px;
+    border: none;
+    vertical-align: middle;
+}
+
+.items-table .total-row {
+    background: rgba(255, 193, 7, 0.15);
+    border-top: 2px solid #ffc107;
+}
+
+.items-table .total-row td {
+    color: #ffc107;
+    font-size: 1.1rem;
+    padding: 15px 10px;
+}
+
+.items-table input[type="number"] {
+    max-width: 100px;
+    text-align: center;
+    padding: 8px;
+}
+
+.items-table .badge {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+}
+
+.items-table .bg-secondary {
+    background: rgba(108, 117, 125, 0.3) !important;
+    color: #b8b8b8 !important;
+}
+
+.items-table .bg-success {
+    background: rgba(76, 175, 80, 0.3) !important;
+    color: #4caf50 !important;
+}
+
+/* Row Selection */
+.return-item-row-selected {
+    background: rgba(255, 193, 7, 0.1) !important;
+}
+
+/* Actions */
+.form-actions {
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    background: rgba(10, 10, 20, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+    border: none;
+    font-weight: 600;
+    padding: 12px 30px;
+    color: #000;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff9800, #ffc107);
+    transform: translateY(-2px);
+}
+
+.btn-success:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: rgba(255, 193, 7, 0.3);
+}
+
+.btn-outline-secondary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #b8b8b8;
+    padding: 12px 30px;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.text-danger {
+    color: #ff6b6b !important;
+}
+
+.text-muted {
+    color: #b8b8b8 !important;
+}
+
+/* Utility */
+.d-none {
+    display: none !important;
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Set today's date as default
-    const dateInput = document.getElementById('{{ form.return_date.id_for_label }}');
-    if (!dateInput.value) {
-        dateInput.valueAsDate = new Date();
+    const invoiceSelect = document.getElementById('id_invoice');
+    const invoiceDetails = document.getElementById('invoiceDetails');
+    const returnItemsSection = document.getElementById('returnItemsSection');
+    const additionalDetailsSection = document.getElementById('additionalDetailsSection');
+    const returnItemsBody = document.getElementById('returnItemsBody');
+    const submitBtn = document.getElementById('submitBtn');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const selectedCountBadge = document.getElementById('selectedCount');
+    const returnForm = document.getElementById('returnForm');
+    
+    if (!invoiceSelect || !returnForm || !returnItemsBody) {
+        console.error('Critical form elements missing');
+        return;
     }
     
-    // Image preview
-    const fileInput = document.getElementById('{{ form.image.id_for_label }}');
-    const previewDiv = document.getElementById('imagePreview');
+    let selectedItems = new Map();
     
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewDiv.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-            };
-            reader.readAsDataURL(file);
+    // Auto-load items if invoice pre-selected (after form error)
+    const preSelectedInvoiceId = invoiceSelect.value;
+    if (preSelectedInvoiceId) {
+        setTimeout(() => {
+            if (returnItemsBody.querySelector('td[colspan]')) {
+                fetchInvoiceItems(preSelectedInvoiceId);
+            }
+        }, 500);
+    }
+    
+    // Invoice selection handler
+    invoiceSelect.addEventListener('change', function() {
+        const invoiceId = this.value;
+        
+        if (!invoiceId) {
+            if (invoiceDetails) invoiceDetails.classList.add('d-none');
+            if (returnItemsSection) returnItemsSection.classList.add('d-none');
+            if (additionalDetailsSection) additionalDetailsSection.style.display = 'none';
+            if (submitBtn) submitBtn.disabled = true;
+            selectedItems.clear();
+            updateSelectedCount();
+            return;
         }
+        
+        fetchInvoiceItems(invoiceId);
     });
+    
+    // Fetch invoice items
+    function fetchInvoiceItems(invoiceId) {
+        if (returnItemsBody) {
+            returnItemsBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center" style="padding: 30px;">
+                        <i class="bi bi-hourglass-split" style="font-size: 1.5rem; color: #ffc107;"></i>
+                        <br>
+                        <span style="color: #b8b8b8; margin-top: 10px; display: inline-block;">
+                            Loading returnable items...
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        if (returnItemsSection) {
+            returnItemsSection.classList.remove('d-none');
+        }
+        
+        fetch(`/billing/ajax/invoice/${invoiceId}/returnable-items/`)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update invoice details
+                    if (invoiceDetails) {
+                        document.getElementById('invoiceNumber').textContent = data.invoice_number;
+                        document.getElementById('partyName').textContent = data.party_name;
+                        document.getElementById('invoiceDate').textContent = data.invoice_date;
+                        document.getElementById('invoiceTotal').textContent = parseFloat(data.invoice_total).toFixed(2);
+                        invoiceDetails.classList.remove('d-none');
+                    }
+                    
+                    // Populate items
+                    if (data.items && data.items.length > 0) {
+                        populateItemsTable(data.items);
+                        if (additionalDetailsSection) {
+                            additionalDetailsSection.style.display = 'block';
+                        }
+                    } else {
+                        showNoItemsMessage();
+                    }
+                } else {
+                    showErrorMessage(data.error || 'Failed to load items');
+                }
+            })
+            .catch(error => {
+                showErrorMessage(error.message);
+            });
+    }
+    
+    function showNoItemsMessage() {
+        if (!returnItemsBody) return;
+        returnItemsBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center" style="padding: 30px; color: #b8b8b8;">
+                    <i class="bi bi-inbox" style="font-size: 2rem; color: #ffc107;"></i>
+                    <br>
+                    <span style="margin-top: 10px; display: inline-block;">
+                        No returnable items in this invoice
+                    </span>
+                </td>
+            </tr>
+        `;
+        if (submitBtn) submitBtn.disabled = true;
+        if (additionalDetailsSection) additionalDetailsSection.style.display = 'none';
+    }
+    
+    function showErrorMessage(message) {
+        if (!returnItemsBody) return;
+        returnItemsBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center" style="padding: 30px; color: #ff6b6b;">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    <br>
+                    <span style="margin-top: 10px; display: inline-block;">
+                        ${message}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }
+    
+    // Populate items table
+    function populateItemsTable(items) {
+        if (!returnItemsBody) return;
+        returnItemsBody.innerHTML = '';
+        
+        items.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input item-checkbox" 
+                           data-index="${index}"
+                           data-invoice-item-id="${item.invoice_item_id}"
+                           data-max-qty="${item.remaining_returnable}"
+                           data-price="${item.per_unit_price}"
+                           data-item-name="${escapeHtml(item.item_name)}">
+                </td>
+                <td>
+                    <strong>${escapeHtml(item.item_name)}</strong>
+                    ${item.already_returned > 0 ? `<br><small style="color: #b8b8b8;">Already returned: ${item.already_returned}</small>` : ''}
+                </td>
+                <td><span class="badge bg-secondary">${escapeHtml(item.item_hns || 'N/A')}</span></td>
+                <td class="text-center">${item.sold_quantity}</td>
+                <td class="text-center"><span class="badge bg-success">${item.remaining_returnable}</span></td>
+                <td class="text-end">₹${parseFloat(item.per_unit_price).toFixed(2)}</td>
+                <td class="text-center">
+                    <input type="number" class="form-control quantity-input text-center" 
+                           data-index="${index}" 
+                           min="1" 
+                           max="${item.remaining_returnable}" 
+                           value="${item.remaining_returnable}" 
+                           disabled
+                           style="max-width: 100px; margin: 0 auto;">
+                </td>
+                <td class="text-end"><span class="amount-display fw-bold" data-index="${index}">₹0.00</span></td>
+            `;
+            returnItemsBody.appendChild(row);
+        });
+        
+        attachEventListeners();
+    }
+    
+    // Attach event listeners
+    function attachEventListeners() {
+        document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const index = this.dataset.index;
+                const quantityInput = document.querySelector(`.quantity-input[data-index="${index}"]`);
+                const row = this.closest('tr');
+                
+                if (this.checked) {
+                    if (quantityInput) quantityInput.disabled = false;
+                    if (row) row.classList.add('return-item-row-selected');
+                    calculateItemAmount(index);
+                } else {
+                    if (quantityInput) quantityInput.disabled = true;
+                    if (row) row.classList.remove('return-item-row-selected');
+                    const amountDisplay = document.querySelector(`.amount-display[data-index="${index}"]`);
+                    if (amountDisplay) amountDisplay.textContent = '₹0.00';
+                    selectedItems.delete(this.dataset.invoiceItemId);
+                }
+                
+                updateTotalAmount();
+                updateSubmitButton();
+                updateSelectedCount();
+            });
+        });
+        
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.addEventListener('input', function() {
+                calculateItemAmount(this.dataset.index);
+                updateTotalAmount();
+            });
+            
+            input.addEventListener('blur', function() {
+                const checkbox = document.querySelector(`.item-checkbox[data-index="${this.dataset.index}"]`);
+                if (!checkbox) return;
+                
+                const maxQty = parseInt(checkbox.dataset.maxQty);
+                let value = parseInt(this.value) || 0;
+                
+                if (value > maxQty) {
+                    this.value = maxQty;
+                    alert(`Maximum returnable quantity: ${maxQty}`);
+                } else if (value <= 0) {
+                    this.value = 1;
+                }
+                
+                calculateItemAmount(this.dataset.index);
+                updateTotalAmount();
+            });
+        });
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                document.querySelectorAll('.item-checkbox').forEach(cb => {
+                    cb.checked = this.checked;
+                    cb.dispatchEvent(new Event('change'));
+                });
+            });
+        }
+    }
+    
+    function calculateItemAmount(index) {
+        const checkbox = document.querySelector(`.item-checkbox[data-index="${index}"]`);
+        const quantityInput = document.querySelector(`.quantity-input[data-index="${index}"]`);
+        const amountDisplay = document.querySelector(`.amount-display[data-index="${index}"]`);
+        
+        if (!checkbox || !quantityInput || !amountDisplay) return;
+        if (!checkbox.checked) {
+            amountDisplay.textContent = '₹0.00';
+            return;
+        }
+        
+        const quantity = parseInt(quantityInput.value) || 0;
+        const price = parseFloat(checkbox.dataset.price) || 0;
+        const amount = quantity * price;
+        
+        amountDisplay.textContent = `₹${amount.toFixed(2)}`;
+        
+        selectedItems.set(checkbox.dataset.invoiceItemId, {
+            invoice_item_id: checkbox.dataset.invoiceItemId,
+            quantity: quantity,
+            amount: amount,
+            item_name: checkbox.dataset.itemName
+        });
+    }
+    
+    function updateTotalAmount() {
+        let total = 0;
+        document.querySelectorAll('.amount-display').forEach(display => {
+            const amount = parseFloat(display.textContent.replace('₹', '')) || 0;
+            total += amount;
+        });
+        
+        const totalEl = document.getElementById('totalReturnAmount');
+        if (totalEl) {
+            totalEl.textContent = total.toFixed(2);
+        }
+    }
+    
+    function updateSelectedCount() {
+        if (!selectedCountBadge) return;
+        
+        const count = selectedItems.size;
+        selectedCountBadge.textContent = `${count} item${count !== 1 ? 's' : ''} selected`;
+        selectedCountBadge.style.background = count > 0 ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 193, 7, 0.2)';
+        selectedCountBadge.style.color = count > 0 ? '#4caf50' : '#ffc107';
+        selectedCountBadge.style.borderColor = count > 0 ? '#4caf50' : '#ffc107';
+    }
+    
+    function updateSubmitButton() {
+        if (!submitBtn) return;
+        submitBtn.disabled = selectedItems.size === 0;
+    }
+    
+    // Form submission
+    returnForm.addEventListener('submit', function(e) {
+        if (selectedItems.size === 0) {
+            e.preventDefault();
+            alert('Please select at least one item to return');
+            return false;
+        }
+        
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing Return...';
+        }
+        
+        const formsetPrefix = 'form';
+        const totalFormsInput = document.querySelector(`input[name="${formsetPrefix}-TOTAL_FORMS"]`);
+        
+        if (!totalFormsInput) {
+            e.preventDefault();
+            alert('Form configuration error. Please refresh the page.');
+            return false;
+        }
+        
+        totalFormsInput.value = selectedItems.size;
+        
+        let formIndex = 0;
+        selectedItems.forEach((itemData) => {
+            createHiddenInput(`${formsetPrefix}-${formIndex}-invoice_item`, itemData.invoice_item_id);
+            createHiddenInput(`${formsetPrefix}-${formIndex}-quantity`, itemData.quantity);
+            createHiddenInput(`${formsetPrefix}-${formIndex}-amount`, itemData.amount.toFixed(2));
+            formIndex++;
+        });
+        
+        return true;
+    });
+    
+    function createHiddenInput(name, value) {
+        let input = document.querySelector(`input[name="${name}"]`);
+        
+        if (input) {
+            input.value = value;
+        } else {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            returnForm.appendChild(input);
+        }
+    }
+    
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text ? String(text).replace(/[&<>"']/g, m => map[m]) : '';
+    }
 });
 </script>
+
 {% endblock %}

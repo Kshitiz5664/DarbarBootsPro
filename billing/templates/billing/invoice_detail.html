@@ -1,126 +1,391 @@
 {% extends "billing/base.html" %}
+{% load static %}
 
-{% block page_title %}Invoice {{ object.invoice_number }}{% endblock %}
+{% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
 
 {% block action_button %}
-<a href="{% url 'billing:invoice_update' object.pk %}" class="btn btn-secondary">
-    <i class="bi bi-pencil-square"></i> Edit
-</a>
-
-<a href="#" class="btn btn-danger">
-    <i class="bi bi-trash"></i> Delete
-</a>
+<div class="d-flex gap-2">
+    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+    
+    <a href="{% url 'billing:invoice_update' invoice_id=invoice.id %}" class="btn btn-primary">
+        <i class="bi bi-pencil-square"></i> Edit
+    </a>
+    
+    {% if not invoice.is_paid %}
+    <a href="{% url 'billing:payment_create_for_invoice' invoice.id %}" class="btn btn-success">
+        <i class="bi bi-cash-stack"></i> Add Payment
+    </a>
+    {% endif %}
+    
+    <a href="{% url 'billing:return_create' %}?invoice_id={{ invoice.id }}" class="btn btn-warning">
+        <i class="bi bi-arrow-return-left"></i> Create Return
+    </a>
+    
+    <!-- ✅ FIXED DELETE BUTTON -->
+    <a href="{% url 'billing:invoice_delete' invoice_id=invoice.id %}" 
+       class="btn btn-danger"
+       onclick="return confirm('⚠️ Are you sure you want to delete this invoice?\n\nThis will:\n• Mark invoice as deleted\n• Restore stock for all items\n• Mark related payments/returns as inactive\n\nThis action cannot be undone!');">
+        <i class="bi bi-trash"></i> Delete
+    </a>
+    
+    <a href="{% url 'billing:invoice_pdf' invoice.id %}" class="btn btn-outline-info">
+        <i class="bi bi-file-pdf"></i> PDF
+    </a>
+</div>
 {% endblock %}
 
 {% block billing_content %}
-<div class="card mb-4 shadow-sm">
-    <div class="card-body">
-        <h4 class="card-title mb-3 text-primary">
-            <i class="bi bi-person-circle"></i> {{ object.party.name }}
-        </h4>
-        <p><strong>Date:</strong> {{ object.date|date:"d M Y" }}</p>
-        <p><strong>Total Amount:</strong> ₹ {{ object.total_amount }}</p>
-        <p><strong>Balance Due:</strong> ₹ {{ object.balance_due }}</p>
-        <p>
-            <strong>Status:</strong>
-            <span class="badge {% if object.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
-                {{ object.is_paid|yesno:"Paid,Pending" }}
-            </span>
-        </p>
+<section class="invoice-detail-section">
+    <div class="container-fluid">
+        
+        <!-- ============================================
+             INVOICE HEADER CARD
+        ============================================ -->
+        <div class="invoice-header-card mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="invoice-title-group">
+                        <h2 class="invoice-number">
+                            <i class="bi bi-receipt"></i> {{ invoice.invoice_number }}
+                        </h2>
+                        <div class="invoice-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar-event"></i>
+                                {{ invoice.date|date:"d M Y" }}
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-person-circle"></i>
+                                {{ invoice.party.name }}
+                            </span>
+                            {% if invoice.party.phone %}
+                            <span class="meta-item">
+                                <i class="bi bi-telephone"></i>
+                                {{ invoice.party.phone }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="status-badge-large">
+                        {% if invoice.is_paid %}
+                        <span class="badge-paid">
+                            <i class="bi bi-check-circle-fill"></i> PAID
+                        </span>
+                        {% else %}
+                        <span class="badge-pending">
+                            <i class="bi bi-clock-fill"></i> PENDING
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             SUMMARY STATS CARDS
+        ============================================ -->
+        <div class="row g-3 mb-4">
+            <!-- Total Amount -->
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card stat-card-blue">
+                    <div class="stat-icon">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Invoice Total</p>
+                        <h3 class="stat-value">₹{{ invoice.total_amount|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Paid -->
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card stat-card-green">
+                    <div class="stat-icon">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Total Paid</p>
+                        <h3 class="stat-value">₹{{ total_paid|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Returns -->
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card stat-card-orange">
+                    <div class="stat-icon">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Total Returns</p>
+                        <h3 class="stat-value">₹{{ total_returns|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Balance Due -->
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card {% if balance_due > 0 %}stat-card-red{% else %}stat-card-purple{% endif %}">
+                    <div class="stat-icon">
+                        <i class="bi bi-{% if balance_due > 0 %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Balance Due</p>
+                        <h3 class="stat-value">₹{{ balance_due|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             INVOICE ITEMS
+        ============================================ -->
+        <div class="section-card mb-4">
+            <div class="section-header">
+                <h5 class="section-title">
+                    <i class="bi bi-box-seam"></i> Invoice Items
+                </h5>
+                <span class="section-badge">{{ items.count }} item{{ items.count|pluralize }}</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="35%">Item Name</th>
+                            <th width="10%" class="text-center">Quantity</th>
+                            <th width="12%" class="text-end">Rate</th>
+                            <th width="10%" class="text-end">GST</th>
+                            <th width="10%" class="text-end">Discount</th>
+                            <th width="13%" class="text-end">Total</th>
+                            <th width="5%" class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="text-center">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="item-name">
+                                    <i class="bi bi-tag"></i>
+                                    <strong>{{ item.item.name|default:"Manual Item" }}</strong>
+                                </div>
+                                {% if item.item.hns_code %}
+                                <small class="text-muted d-block">HSN: {{ item.item.hns_code }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="quantity-badge">{{ item.quantity }}</span>
+                            </td>
+                            <td class="text-end">₹{{ item.rate|floatformat:2 }}</td>
+                            <td class="text-end text-warning">₹{{ item.gst_amount|floatformat:2 }}</td>
+                            <td class="text-end text-success">-₹{{ item.discount_amount|floatformat:2 }}</td>
+                            <td class="text-end">
+                                <strong class="amount-highlight">₹{{ item.total|floatformat:2 }}</strong>
+                            </td>
+                            <td class="text-center">
+                                {% if item.item %}
+                                <i class="bi bi-check-circle-fill text-success" title="Tracked Item"></i>
+                                {% else %}
+                                <i class="bi bi-dash-circle text-muted" title="Manual Entry"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                <p class="mt-2">No items in this invoice</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="6" class="text-end">
+                                <strong><i class="bi bi-calculator"></i> Grand Total:</strong>
+                            </td>
+                            <td class="text-end">
+                                <strong class="grand-total">₹{{ invoice.base_amount|floatformat:2 }}</strong>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============================================
+             PAYMENTS & RETURNS ROW
+        ============================================ -->
+        <div class="row g-4">
+            
+            <!-- PAYMENTS COLUMN -->
+            <div class="col-lg-6">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h5 class="section-title">
+                            <i class="bi bi-credit-card-2-front"></i> Payments
+                        </h5>
+                        <span class="section-badge">{{ payments.count }} payment{{ payments.count|pluralize }}</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table data-table-compact">
+                            <thead>
+                                <tr>
+                                    <th width="30%">Payment #</th>
+                                    <th width="25%">Date</th>
+                                    <th width="20%" class="text-end">Amount</th>
+                                    <th width="25%">Mode</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr class="clickable-row" onclick="window.location='{% url 'billing:payment_detail' payment_id=payment.id %}'">
+                                    <td>
+                                        <a href="{% url 'billing:payment_detail' payment_id=payment.id %}" class="link-primary">
+                                            {{ payment.payment_number|default:payment.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ payment.date|date:"d M Y" }}</td>
+                                    <td class="text-end">
+                                        <span class="amount-success">₹{{ payment.amount|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="mode-badge mode-{{ payment.mode }}">
+                                            {% if payment.mode == 'cash' %}
+                                            <i class="bi bi-cash"></i>
+                                            {% elif payment.mode == 'upi' %}
+                                            <i class="bi bi-phone"></i>
+                                            {% elif payment.mode == 'bank' %}
+                                            <i class="bi bi-bank"></i>
+                                            {% elif payment.mode == 'cheque' %}
+                                            <i class="bi bi-file-text"></i>
+                                            {% endif %}
+                                            {{ payment.get_mode_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        <i class="bi bi-wallet2"></i> No payments recorded yet
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if not invoice.is_paid %}
+                    <div class="card-footer-action">
+                        <a href="{% url 'billing:payment_create_for_invoice' invoice.id %}" class="btn btn-success btn-sm w-100">
+                            <i class="bi bi-plus-circle"></i> Add Payment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- RETURNS COLUMN -->
+            <div class="col-lg-6">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h5 class="section-title">
+                            <i class="bi bi-arrow-return-left"></i> Returns
+                        </h5>
+                        <span class="section-badge">{{ returns.count }} return{{ returns.count|pluralize }}</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table data-table-compact">
+                            <thead>
+                                <tr>
+                                    <th width="30%">Return #</th>
+                                    <th width="25%">Date</th>
+                                    <th width="20%" class="text-end">Amount</th>
+                                    <th width="25%">Items</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for return_obj in returns %}
+                                <tr class="clickable-row" onclick="window.location='{% url 'billing:return_detail' return_id=return_obj.id %}'">
+                                    <td>
+                                        <a href="{% url 'billing:return_detail' return_id=return_obj.id %}" class="link-danger">
+                                            {{ return_obj.return_number|default:return_obj.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ return_obj.return_date|date:"d M Y" }}</td>
+                                    <td class="text-end">
+                                        <span class="amount-danger">₹{{ return_obj.amount|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="items-badge">
+                                            <i class="bi bi-box"></i>
+                                            {{ return_obj.return_items.count }} item{{ return_obj.return_items.count|pluralize }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        <i class="bi bi-arrow-counterclockwise"></i> No returns recorded
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card-footer-action">
+                        <a href="{% url 'billing:return_create' %}?invoice_id={{ invoice.id }}" class="btn btn-warning btn-sm w-100">
+                            <i class="bi bi-plus-circle"></i> Create Return
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             AUDIT INFO
+        ============================================ -->
+        <div class="audit-info-card mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="audit-item">
+                        <i class="bi bi-person-plus"></i>
+                        <div>
+                            <small class="audit-label">Created By</small>
+                            <p class="audit-value">{{ invoice.created_by.username|default:"System" }}</p>
+                            <small class="audit-date">{{ invoice.created_at|date:"d M Y, h:i A" }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="audit-item">
+                        <i class="bi bi-pencil-square"></i>
+                        <div>
+                            <small class="audit-label">Last Updated By</small>
+                            <p class="audit-value">{{ invoice.updated_by.username|default:"System" }}</p>
+                            <small class="audit-date">{{ invoice.updated_at|date:"d M Y, h:i A" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
-</div>
+</section>
 
-<!-- =========================
-     INVOICE ITEMS
-========================= -->
-<h5 class="mt-4"><i class="bi bi-bag-check"></i> Items</h5>
-<div class="table-responsive">
-    <table class="table table-striped align-middle shadow-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Rate (₹)</th>
-                <th>GST (₹)</th>
-                <th>Discount (₹)</th>
-                <th>Total (₹)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in object.invoice_items.all %}
-            <tr>
-                <td>{{ item.item.name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ item.rate }}</td>
-                <td>{{ item.gst_amount }}</td>
-                <td>{{ item.discount_amount }}</td>
-                <td>{{ item.total }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No items added to this invoice.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- =========================
-     PAYMENTS
-========================= -->
-<h5 class="mt-5"><i class="bi bi-wallet2"></i> Payments</h5>
-<div class="table-responsive">
-    <table class="table table-striped align-middle shadow-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Payment ID</th>
-                <th>Date</th>
-                <th>Amount (₹)</th>
-                <th>Mode</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for payment in object.payments.all %}
-            <tr>
-                <td>{{ payment.id }}</td>
-                <td>{{ payment.date|date:"d M Y" }}</td>
-                <td>{{ payment.amount }}</td>
-                <td>{{ payment.get_mode_display }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="text-center text-muted">No payments made yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- =========================
-     RETURNS (if applicable)
-========================= -->
-{% if object.returns.exists %}
-<h5 class="mt-5"><i class="bi bi-arrow-counterclockwise"></i> Returns</h5>
-<div class="table-responsive">
-    <table class="table table-striped align-middle shadow-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Return ID</th>
-                <th>Date</th>
-                <th>Amount (₹)</th>
-                <th>Reason</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ret in object.returns.all %}
-            <tr>
-                <td>{{ ret.id }}</td>
-                <td>{{ ret.date|date:"d M Y" }}</td>
-                <td>{{ ret.amount }}</td>
-                <td>{{ ret.reason|default:"—" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
-<!-- PDF Auto-Download Script -->
+<!-- ============================================
+     PDF AUTO-DOWNLOAD SCRIPT
+============================================ -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);
@@ -130,9 +395,437 @@ document.addEventListener("DOMContentLoaded", () => {
         iframe.style.display = "none";
         iframe.src = "{% url 'billing:invoice_pdf' invoice.id %}";
         document.body.appendChild(iframe);
+        
+        // Remove the parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 });
 </script>
 
+<style>
+/* ============================================
+   INVOICE DETAIL STYLES
+============================================ */
+
+.invoice-detail-section {
+    background: linear-gradient(135deg, #0a0a1f, #121235, #001f3f);
+    min-height: 100vh;
+    padding: 30px 0;
+}
+
+/* Header Card */
+.invoice-header-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 194, 255, 0.3);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 194, 255, 0.15);
+}
+
+.invoice-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.invoice-number {
+    color: #00c2ff;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.invoice-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.meta-item {
+    color: #b8b8b8;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-item i {
+    color: #00c2ff;
+}
+
+/* Status Badges */
+.status-badge-large {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.badge-paid, .badge-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.badge-paid {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.2));
+    color: #4caf50;
+    border: 2px solid #4caf50;
+}
+
+.badge-pending {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(251, 140, 0, 0.2));
+    color: #ffc107;
+    border: 2px solid #ffc107;
+}
+
+/* Stat Cards */
+.stat-card {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 15px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 194, 255, 0.2);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+}
+
+.stat-card-blue .stat-icon {
+    background: rgba(0, 194, 255, 0.2);
+    color: #00c2ff;
+}
+
+.stat-card-green .stat-icon {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+}
+
+.stat-card-orange .stat-icon {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+}
+
+.stat-card-red .stat-icon {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.stat-card-purple .stat-icon {
+    background: rgba(156, 39, 176, 0.2);
+    color: #9c27b0;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    color: #b8b8b8;
+    font-size: 0.85rem;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    color: #fff;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 5px 0 0 0;
+}
+
+/* Section Cards */
+.section-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: rgba(0, 194, 255, 0.15);
+    padding: 20px 25px;
+    border-bottom: 2px solid rgba(0, 194, 255, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-title {
+    color: #00c2ff;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-badge {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
+/* Data Tables */
+.data-table {
+    width: 100%;
+    margin: 0;
+}
+
+.data-table thead {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.data-table thead th {
+    color: #00c2ff;
+    font-weight: 600;
+    padding: 15px 12px;
+    border: none;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+    background: rgba(0, 194, 255, 0.05);
+}
+
+.data-table tbody td {
+    color: #e0e0e0;
+    padding: 15px 12px;
+    border: none;
+    vertical-align: middle;
+}
+
+.data-table tfoot {
+    background: rgba(0, 194, 255, 0.15);
+    border-top: 2px solid #00c2ff;
+}
+
+.data-table tfoot td {
+    padding: 20px 12px;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+/* Compact Table */
+.data-table-compact tbody td {
+    padding: 12px 10px;
+    font-size: 0.9rem;
+}
+
+/* Clickable Rows */
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background: rgba(0, 194, 255, 0.1) !important;
+}
+
+/* Item Name */
+.item-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.item-name i {
+    color: #00c2ff;
+}
+
+/* Badges */
+.quantity-badge {
+    background: rgba(0, 194, 255, 0.2);
+    color: #00c2ff;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: 1px solid rgba(0, 194, 255, 0.4);
+}
+
+.mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.mode-cash {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.mode-upi {
+    background: rgba(156, 39, 176, 0.2);
+    color: #9c27b0;
+    border: 1px solid rgba(156, 39, 176, 0.4);
+}
+
+.mode-bank {
+    background: rgba(33, 150, 243, 0.2);
+    color: #2196f3;
+    border: 1px solid rgba(33, 150, 243, 0.4);
+}
+
+.mode-cheque {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+    border: 1px solid rgba(255, 152, 0, 0.4);
+}
+
+.items-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #ffc107;
+    font-weight: 500;
+}
+
+/* Amount Highlights */
+.amount-highlight {
+    color: #00c2ff;
+    font-size: 1.05rem;
+}
+
+.amount-success {
+    color: #4caf50;
+    font-weight: 600;
+}
+
+.amount-danger {
+    color: #f44336;
+    font-weight: 600;
+}
+
+.grand-total {
+    color: #00c2ff;
+    font-size: 1.5rem;
+}
+
+/* Links */
+.link-primary {
+    color: #00c2ff;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.link-primary:hover {
+    color: #00d4ff;
+    text-decoration: underline;
+}
+
+.link-danger {
+    color: #f44336;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.link-danger:hover {
+    color: #ff6b6b;
+    text-decoration: underline;
+}
+
+/* Card Footer Action */
+.card-footer-action {
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Audit Info Card */
+.audit-info-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.audit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.audit-item i {
+    color: #00c2ff;
+    font-size: 1.5rem;
+    margin-top: 5px;
+}
+
+.audit-label {
+    color: #b8b8b8;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.audit-value {
+    color: #fff;
+    font-weight: 600;
+    margin: 3px 0;
+}
+
+.audit-date {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .invoice-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.4rem;
+    }
+    
+    .invoice-meta {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+</style>
 
 {% endblock %}

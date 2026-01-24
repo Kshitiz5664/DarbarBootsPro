@@ -742,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalFormsInput = document.getElementById(`id_${formPrefix}-TOTAL_FORMS`);
     const safeFloat = v => parseFloat(v) || 0;
 
-    console.log('🚀 Invoice form initialized with corrected GST calculation');
+    console.log('🚀 Invoice form initialized with FIXED total calculation');
 
     // ==================== Limit Checkbox Handler ====================
     function updateLimitUI() {
@@ -801,6 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemSelect = row.querySelector("select[name$='-item']");
         const itemId = itemSelect ? itemSelect.value : null;
         
+        // ✅ FIXED: Always calculate and update grand total
         if (itemId) {
             fetchItemGSTPercent(itemId).then(gstPercent => {
                 const baseAmount = qty * rate;
@@ -810,6 +811,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (gstInput) gstInput.value = gstAmount.toFixed(2);
                 if (totalInput) totalInput.value = total.toFixed(2);
                 
+                // ✅ Force immediate recalculation
+                setTimeout(() => calcGrand(), 10);
+            }).catch(err => {
+                console.error('GST fetch failed:', err);
+                // ✅ Fallback: Calculate without fetching GST
+                const gst = safeFloat(gstInput?.value || 0);
+                const baseAmount = qty * rate;
+                const total = baseAmount + gst - discount;
+                
+                if (totalInput) totalInput.value = total.toFixed(2);
                 calcGrand();
             });
         } else {
@@ -824,8 +835,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function calcGrand() {
         let total = 0;
-        document.querySelectorAll("input[name$='-total']").forEach(inp => total += safeFloat(inp.value));
-        grandTotalEl.textContent = "₹ " + total.toFixed(2);
+        
+        // ✅ FIXED: More robust selector
+        const totalInputs = document.querySelectorAll("input[name$='-total']");
+        
+        console.log(`🧮 Calculating grand total from ${totalInputs.length} items`);
+        
+        totalInputs.forEach(inp => {
+            const value = safeFloat(inp.value);
+            console.log(`  Item: ${inp.name} = ₹${value.toFixed(2)}`);
+            total += value;
+        });
+        
+        console.log(`✅ Grand Total: ₹${total.toFixed(2)}`);
+        
+        if (grandTotalEl) {
+            grandTotalEl.textContent = "₹ " + total.toFixed(2);
+            
+            // ✅ Visual feedback
+            grandTotalEl.style.transition = 'all 0.3s ease';
+            grandTotalEl.style.transform = 'scale(1.05)';
+            grandTotalEl.style.color = '#00ff88';
+            
+            setTimeout(() => {
+                grandTotalEl.style.transform = 'scale(1)';
+                grandTotalEl.style.color = '#00c2ff';
+            }, 300);
+        }
+        
         return total;
     }
 
@@ -972,49 +1009,22 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Invoice...';
     });
 
-    // Initial calculations
+    // ✅ FIXED: Initial calculations with delay for all async operations
     document.querySelectorAll('.item-row').forEach(row => calcTotal(row));
-});
-function renderMobileItemCards() {
-    const container = document.getElementById('mobileItemsContainer');
-    if (!container) return;
 
-    container.innerHTML = '';
+    // ✅ Force recalculation after a short delay to catch all async operations
+    setTimeout(() => {
+        console.log('🔄 Recalculating grand total after page load...');
+        calcGrand();
+    }, 500);
 
-    document.querySelectorAll('.item-row').forEach((row, index) => {
-        const card = document.createElement('div');
-        card.className = 'mobile-item-card';
-
-        card.innerHTML = `
-            <label>Item</label>
-            ${row.querySelector("[name$='-item']").outerHTML}
-
-            <label>New Item</label>
-            ${row.querySelector("[name$='-new_item_name']").outerHTML}
-
-            <label>Quantity</label>
-            ${row.querySelector("[name$='-quantity']").outerHTML}
-
-            <label>Rate (₹)</label>
-            ${row.querySelector("[name$='-rate']").outerHTML}
-
-            <label>GST (₹)</label>
-            ${row.querySelector("[name$='-gst_amount']").outerHTML}
-
-            <label>Discount (₹)</label>
-            ${row.querySelector("[name$='-discount_amount']").outerHTML}
-
-            <label>Total (₹)</label>
-            ${row.querySelector("[name$='-total']").outerHTML}
-
-            <button type="button" class="btn btn-danger btn-sm remove-row-btn">
-                <i class="bi bi-trash"></i> Remove Item
-            </button>
-        `;
-
-        container.appendChild(card);
+    // ✅ Also recalculate when window fully loads
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            console.log('🔄 Final recalculation on window load...');
+            calcGrand();
+        }, 200);
     });
-}
-
+});
 </script>
 {% endblock %}

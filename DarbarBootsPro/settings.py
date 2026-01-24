@@ -148,3 +148,24 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Or if using pathlib:
 # MEDIA_ROOT = BASE_DIR / 'media'
+
+# settings.py
+WHATSAPP_COUNTRY_CODE = '91'
+# Company Details (for receipts)
+COMPANY_NAME = "Darbar Boot House"
+COMPANY_ADDRESS = "Main road ,Khirkiya "
+COMPANY_PHONE = "+91-8109747974"
+COMPANY_EMAIL = "billing@yourcompany.com"
+
+# Email Configuration
+DEFAULT_FROM_EMAIL = "noreply@yourcompany.com"
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'
+EMAIL_HOST_PASSWORD = 'your-app-password'
+
+# WhatsApp API Configuration (Optional)
+WHATSAPP_API_URL = "https://api.whatsapp.example.com/send"  # Your WhatsApp API endpoint
+WHATSAPP_API_KEY = "your-api-key-here"  # If required

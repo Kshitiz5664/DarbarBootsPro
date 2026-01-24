@@ -1,10 +1,16 @@
 # billing/forms.py
-from django import forms
-from django.forms import inlineformset_factory
-from django.core.exceptions import ValidationError
-from django.forms.models import BaseInlineFormSet
-from django.db import models  # ✅ ADDED: Required for aggregate operations
+"""
+Billing Forms
+=============
+All form definitions for Invoice, Payment, Return, Challan, and Balance management.
+"""
+
+import logging
 from decimal import Decimal
+from django import forms
+from django.forms import inlineformset_factory, BaseInlineFormSet
+from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
 from .models import (
     Invoice, InvoiceItem, Payment, Return, ReturnItem,
@@ -13,249 +19,215 @@ from .models import (
 from party.models import Party
 from items.models import Item
 
+logger = logging.getLogger(__name__)
 
-# =========================================================
-# INVOICE FORM
-# =========================================================
+
+# ================================================================
+# INVOICE FORMS
+# ================================================================
+
 class InvoiceForm(forms.ModelForm):
+    """
+    Invoice creation/update form with party selection and limit options.
+    """
     new_party_name = forms.CharField(
-        max_length=255, 
+        max_length=100,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control', 
-            'placeholder': 'Or enter new party name'
-        })
+            'class': 'form-control',
+            'placeholder': 'Enter new party name (optional)'
+        }),
+        label="New Party Name"
     )
+    
     new_party_phone = forms.CharField(
-        max_length=20, 
+        max_length=15,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control', 
-            'placeholder': 'Phone number'
-        })
+            'class': 'form-control',
+            'placeholder': 'Phone number (optional)'
+        }),
+        label="New Party Phone"
     )
-
-    is_limit_enabled = forms.BooleanField(
-        required=False, 
-        label="Enable Invoice Limit",
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input',
-            'id': 'id_is_limit_enabled'
-        })
-    )
-
-    limit_amount = forms.DecimalField(
-        max_digits=10, 
-        decimal_places=2,
-        required=False, 
-        initial=0, 
-        min_value=0,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control', 
-            'placeholder': 'Invoice limit amount',
-            'step': '0.01'
-        })
-    )
-
+    
     class Meta:
         model = Invoice
-        fields = ['invoice_number', 'party', 'date', 'is_paid', 'is_limit_enabled', 'limit_amount']
+        fields = [
+            'invoice_number', 'party', 'date',
+            'is_limit_enabled', 'limit_amount'
+        ]
         widgets = {
             'invoice_number': forms.TextInput(attrs={
-                'class': 'form-control', 
-                'placeholder': 'Auto-generated if left empty'
+                'class': 'form-control',
+                'readonly': 'readonly'
             }),
             'party': forms.Select(attrs={
                 'class': 'form-select',
                 'id': 'id_party'
             }),
             'date': forms.DateInput(attrs={
-                'type': 'date', 
                 'class': 'form-control',
-                'required': True
+                'type': 'date'
             }),
-            'is_paid': forms.CheckboxInput(attrs={
+            'is_limit_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+            'limit_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            })
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set empty label for party dropdown
-        if 'party' in self.fields:
-            self.fields['party'].empty_label = "-- Select Party --"
-            self.fields['party'].required = False
-        
-        # Make date required
-        self.fields['date'].required = True
-
+    
     def clean(self):
+        """Validate party selection or new party creation"""
         cleaned_data = super().clean()
-
-        # Handle party creation inline
         party = cleaned_data.get('party')
         new_party_name = cleaned_data.get('new_party_name', '').strip()
         
-        if new_party_name and not party:
-            new_party_phone = cleaned_data.get('new_party_phone', '').strip()
-            party, created = Party.objects.get_or_create(
-                name__iexact=new_party_name,
-                defaults={
-                    'name': new_party_name,
-                    'phone': new_party_phone
-                }
-            )
-            cleaned_data['party'] = party
-        elif not party and not new_party_name:
-            raise ValidationError("Please select a party or enter a new party name.")
-
-        # Validate limit logic
-        is_limit_enabled = cleaned_data.get('is_limit_enabled')
-        limit_amount = cleaned_data.get('limit_amount') or Decimal('0.00')
+        # Must have either existing party or new party name
+        if not party and not new_party_name:
+            raise ValidationError("Please select an existing party or enter a new party name.")
         
-        if is_limit_enabled and limit_amount <= 0:
+        # Validate limit
+        is_limit_enabled = cleaned_data.get('is_limit_enabled', False)
+        limit_amount = cleaned_data.get('limit_amount')
+        
+        if is_limit_enabled and (not limit_amount or limit_amount <= 0):
             raise ValidationError({
-                'limit_amount': "Invoice limit must be greater than 0 if enabled."
+                'limit_amount': "Limit amount must be greater than zero when limit is enabled."
             })
-
+        
         return cleaned_data
 
 
-# =========================================================
-# INVOICE ITEM FORM
-# =========================================================
-class InvoiceItemInlineForm(forms.ModelForm):
+class InvoiceItemForm(forms.ModelForm):
+    """
+    Individual invoice item form.
+    """
     new_item_name = forms.CharField(
-        max_length=255, 
+        max_length=200,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control', 
-            'placeholder': 'Or enter new item name'
-        })
+            'class': 'form-control',
+            'placeholder': 'Enter new item name (optional)'
+        }),
+        label="New Item Name"
     )
-
+    
     class Meta:
         model = InvoiceItem
-        fields = ['item', 'quantity', 'rate', 'gst_amount', 'discount_amount', 'total']
+        fields = ['item', 'quantity', 'rate', 'gst_amount', 'discount_amount']
         widgets = {
             'item': forms.Select(attrs={
                 'class': 'form-select item-select'
             }),
             'quantity': forms.NumberInput(attrs={
-                'class': 'form-control quantity-input', 
-                'min': '1', 
-                'value': '1'
+                'class': 'form-control',
+                'min': '1',
+                'step': '1'
             }),
             'rate': forms.NumberInput(attrs={
-                'class': 'form-control rate-input', 
-                'step': '0.01', 
+                'class': 'form-control',
+                'step': '0.01',
                 'min': '0'
             }),
             'gst_amount': forms.NumberInput(attrs={
-                'class': 'form-control gst-input', 
-                'step': '0.01', 
-                'min': '0', 
-                'value': '0'
-            }),
-            'discount_amount': forms.NumberInput(attrs={
-                'class': 'form-control discount-input', 
-                'step': '0.01', 
-                'min': '0', 
-                'value': '0'
-            }),
-            'total': forms.NumberInput(attrs={
-                'class': 'form-control total-input', 
-                'step': '0.01', 
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
                 'readonly': 'readonly'
             }),
+            'discount_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            })
         }
-
+    
     def clean(self):
+        """Validate item selection or new item creation"""
         cleaned_data = super().clean()
-
-        # Handle inline item creation
         item = cleaned_data.get('item')
         new_item_name = cleaned_data.get('new_item_name', '').strip()
-        
-        if new_item_name and not item:
-            item, created = Item.objects.get_or_create(
-                name__iexact=new_item_name,
-                defaults={
-                    'name': new_item_name,
-                    'price_retail': cleaned_data.get('rate', Decimal('0.00')),
-                    'price_wholesale': cleaned_data.get('rate', Decimal('0.00'))
-                }
-            )
-            cleaned_data['item'] = item
-
-        # Validate quantities
         quantity = cleaned_data.get('quantity')
         rate = cleaned_data.get('rate')
         
-        if quantity is not None and quantity <= 0:
+        # Must have either existing item or new item name
+        if not item and not new_item_name:
+            raise ValidationError("Please select an existing item or enter a new item name.")
+        
+        # Validate quantity and rate
+        if quantity and quantity <= 0:
             raise ValidationError({'quantity': "Quantity must be greater than zero."})
         
-        if rate is not None and rate < 0:
+        if rate and rate < 0:
             raise ValidationError({'rate': "Rate cannot be negative."})
-
-        # Total computation (optional - model handles this)
-        if quantity and rate:
-            gst = cleaned_data.get('gst_amount') or Decimal('0.00')
-            discount = cleaned_data.get('discount_amount') or Decimal('0.00')
-            cleaned_data['total'] = (quantity * rate) + gst - discount
-
+        
         return cleaned_data
 
 
-# =========================================================
-# INVOICE ITEM FORMSET
-# =========================================================
 class BaseInvoiceItemFormSet(BaseInlineFormSet):
+    """
+    Custom formset for invoice items with validation.
+    """
     def clean(self):
+        """Validate that at least one item exists"""
         super().clean()
         
-        # Count valid forms (not deleted, has data)
-        valid_forms = [
-            f for f in self.forms 
-            if f.cleaned_data and not f.cleaned_data.get('DELETE', False)
-        ]
-
-        # Additional form-level validation
-        for form in valid_forms:
-            quantity = form.cleaned_data.get('quantity')
-            rate = form.cleaned_data.get('rate')
-            
-            if quantity is not None and quantity <= 0:
-                form.add_error('quantity', "Quantity must be greater than zero.")
-            
-            if rate is not None and rate < 0:
-                form.add_error('rate', "Rate cannot be negative.")
+        if any(self.errors):
+            return
+        
+        # Count non-deleted forms with data
+        valid_forms = 0
+        for form in self.forms:
+            if not form.cleaned_data.get('DELETE', False):
+                if form.cleaned_data.get('item') or form.cleaned_data.get('new_item_name'):
+                    valid_forms += 1
+        
+        if valid_forms < 1:
+            raise ValidationError("At least one invoice item is required.")
 
 
+# Create the formset
 InvoiceItemFormSet = inlineformset_factory(
-    Invoice, 
+    Invoice,
     InvoiceItem,
-    form=InvoiceItemInlineForm,
+    form=InvoiceItemForm,
     formset=BaseInvoiceItemFormSet,
-    extra=1,
+    extra=5,
     can_delete=True,
+    min_num=1,
+    validate_min=True
 )
 
 
-# =========================================================
-# PAYMENT FORM
-# =========================================================
+# ================================================================
+# PAYMENT FORMS
+# ================================================================
+
 class PaymentForm(forms.ModelForm):
+    """
+    Payment creation form with party and invoice selection.
+    """
+    new_party_name = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter new party name (optional)'
+        }),
+        label="New Party Name"
+    )
+    
     send_receipt = forms.BooleanField(
         required=False,
-        initial=True,
+        initial=False,
         widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input',
-            'id': 'id_send_receipt'
+            'class': 'form-check-input'
         }),
-        label="Send WhatsApp receipt to party"
+        label="Send Receipt via WhatsApp/Email"
     )
-
     download_receipt = forms.BooleanField(
         required=False,
         initial=False,
@@ -265,17 +237,7 @@ class PaymentForm(forms.ModelForm):
         }),
         label="Download PDF Receipt"
     )
-
-    new_party_name = forms.CharField(
-        required=False,
-        label="New Party Name",
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter party name',
-            'id': 'id_new_party_name'
-        })
-    )
-
+    
     class Meta:
         model = Payment
         fields = ['party', 'invoice', 'date', 'amount', 'mode', 'notes']
@@ -290,349 +252,326 @@ class PaymentForm(forms.ModelForm):
             }),
             'date': forms.DateInput(attrs={
                 'class': 'form-control',
-                'type': 'date',
-                'id': 'id_date'
+                'type': 'date'
             }),
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
-                'min': '0.01',
-                'placeholder': '0.00',
-                'id': 'id_amount'
+                'min': '0.01'
             }),
             'mode': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_mode'
+                'class': 'form-select'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Add any notes or reference details...',
-                'id': 'id_notes'
-            }),
+                'placeholder': 'Optional notes'
+            })
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Make invoice optional (for general payments)
+        self.fields['invoice'].required = False
         
-        # Set empty labels for choices
-        if 'party' in self.fields:
-            self.fields['party'].empty_label = "-- Select Party --"
-            self.fields['party'].required = False
-        
-        if 'invoice' in self.fields:
-            self.fields['invoice'].empty_label = "-- No Invoice (Optional) --"
-            self.fields['invoice'].required = False
-        
-        if 'mode' in self.fields:
-            self.fields['mode'].empty_label = "-- Select Payment Mode --"
-
+        # Filter invoices to show only unpaid ones
+        self.fields['invoice'].queryset = Invoice.objects.filter(
+            is_paid=False,
+            is_active=True
+        ).order_by('-date')
+    
     def clean(self):
-        cleaned = super().clean()
-        party = cleaned.get('party')
-        new_party_name = cleaned.get('new_party_name', '').strip()
-        invoice = cleaned.get('invoice')
-        amount = cleaned.get('amount')
-
-        # Party validation
+        """Validate payment amount against invoice balance"""
+        cleaned_data = super().clean()
+        party = cleaned_data.get('party')
+        new_party_name = cleaned_data.get('new_party_name', '').strip()
+        invoice = cleaned_data.get('invoice')
+        amount = cleaned_data.get('amount')
+        
+        # Must have either existing party or new party name
         if not party and not new_party_name:
             raise ValidationError("Please select an existing party or enter a new party name.")
-
-        # Handle party creation
-        if new_party_name and not party:
-            party, created = Party.objects.get_or_create(
-                name__iexact=new_party_name,
-                defaults={'name': new_party_name}
-            )
-            cleaned['party'] = party
-
-        # Invoice-specific validation
+        
+        # Validate amount is positive
+        if amount and amount <= Decimal('0.00'):
+            raise ValidationError({'amount': "Payment amount must be greater than zero."})
+        
+        # Validate against invoice balance if linked
         if invoice and amount:
-            total_amount = invoice.total_amount or Decimal('0.00')
-            total_paid = invoice.total_paid or Decimal('0.00')
+            balance = invoice.balance_due or Decimal('0.00')
             
-            current_balance = total_amount - total_paid
-            
-            if current_balance < Decimal('0.00'):
-                current_balance = Decimal('0.00')
-            
-            if amount > current_balance:
+            if amount > balance:
                 raise ValidationError({
-                    'amount': f"Payment amount ₹{amount} exceeds the pending balance of ₹{current_balance:.2f}."
+                    'amount': f"Payment amount ₹{amount} exceeds balance due ₹{balance:.2f}"
                 })
-
-        return cleaned
-
-    def clean_amount(self):
-        amount = self.cleaned_data.get('amount')
-        if amount is not None and amount <= 0:
-            raise ValidationError("Payment amount must be greater than zero.")
-        return amount
+        
+        return cleaned_data
 
 
-# =========================================================
-# RETURN FORM
-# =========================================================
+# ================================================================
+# RETURN FORMS
+# ================================================================
+
+# billing/forms.py
+# REPLACE RETURN FORMS SECTION WITH THIS:
+
+# ================================================================
+# RETURN FORMS (FIXED - NON-INLINE)
+# ================================================================
+
 class ReturnForm(forms.ModelForm):
+    """Return creation form."""
     class Meta:
         model = Return
-        fields = ['invoice', 'party', 'return_date', 'amount', 'reason', 'image']
+        fields = ['invoice', 'return_date', 'reason', 'image']
         widgets = {
             'invoice': forms.Select(attrs={
                 'class': 'form-select',
                 'id': 'id_invoice',
                 'required': True
             }),
-            'party': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_party',
-                'readonly': True
-            }),
             'return_date': forms.DateInput(attrs={
-                'type': 'date', 
                 'class': 'form-control',
-                'required': True
-            }),
-            'amount': forms.NumberInput(attrs={
-                'class': 'form-control', 
-                'step': '0.01', 
-                'min': '0.01',
-                'placeholder': 'Return amount'
+                'type': 'date'
             }),
             'reason': forms.Textarea(attrs={
-                'class': 'form-control', 
-                'rows': 3, 
+                'class': 'form-control',
+                'rows': 3,
                 'placeholder': 'Reason for return (optional)'
             }),
             'image': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*'
-            }),
+            })
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Make required fields explicit
+        # ✅ FIXED: More permissive queryset - include ALL active invoices
+        self.fields['invoice'].queryset = Invoice.objects.filter(
+            is_active=True
+        ).select_related('party').order_by('-date')
+        
+        # ✅ Make invoice required
         self.fields['invoice'].required = True
-        self.fields['return_date'].required = True
-        self.fields['amount'].required = True
         
-        # Party is auto-filled from invoice
-        if 'instance' in kwargs and kwargs['instance'].invoice:
-            self.fields['party'].initial = kwargs['instance'].invoice.party
-            self.fields['party'].widget.attrs['readonly'] = True
+        # ✅ Optional: Make reason not required
+        self.fields['reason'].required = False
+        self.fields['image'].required = False
 
-    def clean(self):
-        cleaned_data = super().clean()
-        invoice = cleaned_data.get('invoice')
-        amount = cleaned_data.get('amount')
-        
-        if not invoice:
-            raise ValidationError({'invoice': "Please select an invoice."})
-        
-        if not amount or amount <= 0:
-            raise ValidationError({'amount': "Return amount must be greater than zero."})
-        
-        # Auto-set party from invoice
-        if invoice:
-            cleaned_data['party'] = invoice.party
-        
-        # ✅ FIXED: Validate return amount doesn't exceed invoice total
-        if invoice and amount:
-            existing_returns = Return.objects.filter(
-                invoice=invoice,
-                is_active=True
-            ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-            
-            max_returnable = invoice.base_amount - existing_returns
-            
-            if amount > max_returnable:
-                raise ValidationError({
-                    'amount': f"Return amount ₹{amount} exceeds maximum returnable amount ₹{max_returnable:.2f}. "
-                              f"(Invoice Total: ₹{invoice.base_amount}, Already Returned: ₹{existing_returns})"
-                })
-        
-        return cleaned_data
-
-
-# =========================================================
-# RETURN ITEM FORM (Future Enhancement - Optional)
-# =========================================================
-class ReturnItemForm(forms.ModelForm):
-    """Form for tracking specific items in a return"""
+class ReturnItemForm(forms.Form):  # ✅ Changed to regular Form (not ModelForm)
+    """
+    Individual return item form.
+    NOT a ModelForm - we'll create ReturnItem objects manually in the view.
+    """
+    invoice_item = forms.ModelChoiceField(
+        queryset=InvoiceItem.objects.none(),
+        widget=forms.Select(attrs={
+            'class': 'form-select return-invoice-item',
+            'required': 'required'
+        }),
+        label="Item"
+    )
     
-    class Meta:
-        model = ReturnItem
-        fields = ['invoice_item', 'quantity', 'amount']
-        widgets = {
-            'invoice_item': forms.Select(attrs={
-                'class': 'form-select',
-                'required': True
-            }),
-            'quantity': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '1',
-                'placeholder': 'Quantity to return'
-            }),
-            'amount': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'readonly': 'readonly'
-            }),
-        }
-
+    quantity = forms.IntegerField(
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control return-quantity',
+            'min': '1',
+            'step': '1',
+            'required': 'required'
+        }),
+        label="Quantity"
+    )
+    
+    amount = forms.DecimalField(
+        min_value=Decimal('0.01'),
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control return-amount',
+            'step': '0.01',
+            'min': '0.01',
+            'readonly': 'readonly',
+            'required': 'required'
+        }),
+        label="Amount"
+    )
+    
     def __init__(self, *args, invoice=None, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Filter invoice items to only show items from selected invoice
         if invoice:
             self.fields['invoice_item'].queryset = InvoiceItem.objects.filter(
                 invoice=invoice,
-                is_active=True
-            )
-            self.fields['invoice_item'].label_from_instance = lambda obj: (
-                f"{obj.item.name if obj.item else 'Unknown'} "
-                f"(Qty: {obj.quantity}, Rate: ₹{obj.rate})"
-            )
-
+                is_active=True,
+                item__isnull=False
+            ).select_related('item').order_by('item__name')
+    
     def clean(self):
         cleaned_data = super().clean()
         invoice_item = cleaned_data.get('invoice_item')
         quantity = cleaned_data.get('quantity')
         
-        if invoice_item and quantity:
-            # Check if quantity doesn't exceed invoice quantity
-            if quantity > invoice_item.quantity:
-                raise ValidationError({
-                    'quantity': f"Cannot return {quantity} units. "
-                               f"Invoice only has {invoice_item.quantity} units."
-                })
-            
-            # Check against already returned quantities
-            existing_returns = ReturnItem.objects.filter(
-                invoice_item=invoice_item,
-                is_active=True
-            ).aggregate(total=models.Sum('quantity'))['total'] or 0
-            
-            remaining = invoice_item.quantity - existing_returns
-            
-            if quantity > remaining:
-                raise ValidationError({
-                    'quantity': f"Cannot return {quantity} units. "
-                               f"Only {remaining} units remaining (already returned {existing_returns})."
-                })
-            
-            # Auto-calculate amount based on invoice item rate
-            if invoice_item.total and invoice_item.quantity:
-                per_unit_price = invoice_item.total / invoice_item.quantity
-                from decimal import ROUND_HALF_UP
-                cleaned_data['amount'] = (per_unit_price * quantity).quantize(
-                    Decimal('0.01'), 
-                    rounding=ROUND_HALF_UP
-                )
+        if not invoice_item or not quantity:
+            return cleaned_data
+        
+        # Calculate already returned
+        already_returned = ReturnItem.objects.filter(
+            invoice_item=invoice_item,
+            return_instance__is_active=True
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+        
+        max_returnable = invoice_item.quantity - already_returned
+        
+        if quantity > max_returnable:
+            raise ValidationError({
+                'quantity': f"Cannot return {quantity} units. Maximum: {max_returnable}"
+            })
         
         return cleaned_data
 
 
-# ReturnItem Formset (Future Enhancement)
-ReturnItemFormSet = inlineformset_factory(
-    Return,
-    ReturnItem,
-    form=ReturnItemForm,
+class BaseReturnItemFormSet(forms.BaseFormSet):  # ✅ Changed from BaseInlineFormSet
+    """Custom formset for return items."""
+    
+    def __init__(self, *args, invoice=None, **kwargs):
+        self.invoice = invoice
+        super().__init__(*args, **kwargs)
+    
+    def _construct_form(self, i, **kwargs):
+        """Pass invoice to each form"""
+        kwargs['invoice'] = self.invoice
+        return super()._construct_form(i, **kwargs)
+    
+    def clean(self):
+        """Validate at least one item"""
+        if any(self.errors):
+            return
+        
+        valid_items = 0
+        for form in self.forms:
+            if form.cleaned_data:
+                if form.cleaned_data.get('invoice_item') and form.cleaned_data.get('quantity'):
+                    valid_items += 1
+        
+        if valid_items < 1:
+            raise ValidationError("At least one item must be returned.")
+
+
+# ✅ FIXED: Use regular formset_factory (not inline)
+from django.forms import formset_factory
+
+ReturnItemFormSet = formset_factory(
+    ReturnItemForm,
+    formset=BaseReturnItemFormSet,
     extra=1,
-    can_delete=True,
-    min_num=0,
-    validate_min=False,
+    can_delete=False,  # No delete for creation
+    min_num=1,
+    validate_min=True,
+    max_num=50  # Reasonable limit
 )
 
+# ================================================================
+# CHALLAN FORMS
+# ================================================================
 
-# =========================================================
-# CHALLAN FORM + FORMSET
-# =========================================================
 class ChallanForm(forms.ModelForm):
+    """
+    Challan (Delivery Note) creation form.
+    """
     class Meta:
         model = Challan
         fields = ['party', 'invoice', 'date', 'transport_details']
         widgets = {
             'party': forms.Select(attrs={
                 'class': 'form-select',
-                'required': True
+                'required': 'required'
             }),
             'invoice': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'date': forms.DateInput(attrs={
-                'type': 'date', 
                 'class': 'form-control',
-                'required': True
+                'type': 'date'
             }),
             'transport_details': forms.Textarea(attrs={
-                'class': 'form-control', 
-                'rows': 3, 
-                'placeholder': 'Enter transport details (Vehicle No, Driver Name, etc.)'
-            }),
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Vehicle number, driver name, etc.'
+            })
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Make required fields explicit
-        self.fields['party'].required = True
-        self.fields['date'].required = True
+        # Make invoice optional
         self.fields['invoice'].required = False
         
-        # Set empty labels
-        self.fields['party'].empty_label = "-- Select Party --"
-        self.fields['invoice'].empty_label = "-- Link to Invoice (Optional) --"
-        
-        # Add help text
-        self.fields['party'].help_text = 'Select the party to deliver goods to'
-        self.fields['invoice'].help_text = 'Optionally link this challan to an invoice'
-        self.fields['date'].help_text = 'Challan date'
+        # Filter to active invoices only
+        self.fields['invoice'].queryset = Invoice.objects.filter(
+            is_active=True
+        ).order_by('-date')
 
 
 class ChallanItemForm(forms.ModelForm):
-    """Individual challan item form"""
-    
+    """
+    Individual challan item form.
+    """
     class Meta:
         model = ChallanItem
         fields = ['item', 'quantity']
         widgets = {
             'item': forms.Select(attrs={
-                'class': 'form-select',
-                'required': True
+                'class': 'form-select'
             }),
             'quantity': forms.NumberInput(attrs={
-                'class': 'form-control', 
+                'class': 'form-control',
                 'min': '1',
-                'placeholder': 'Qty',
-                'required': True
-            }),
+                'step': '1'
+            })
         }
 
-    def clean_quantity(self):
-        quantity = self.cleaned_data.get('quantity')
-        if quantity is not None and quantity <= 0:
-            raise ValidationError("Quantity must be greater than zero.")
-        return quantity
+
+class BaseChallanItemFormSet(BaseInlineFormSet):
+    """Custom formset for challan items"""
+    def clean(self):
+        """Validate at least one item exists"""
+        super().clean()
+        
+        if any(self.errors):
+            return
+        
+        valid_items = 0
+        for form in self.forms:
+            if not form.cleaned_data.get('DELETE', False):
+                if form.cleaned_data.get('item'):
+                    valid_items += 1
+        
+        if valid_items < 1:
+            raise ValidationError("At least one item is required.")
 
 
+# Create the formset
 ChallanItemFormSet = inlineformset_factory(
     Challan,
     ChallanItem,
     form=ChallanItemForm,
-    extra=1,
+    formset=BaseChallanItemFormSet,
+    extra=3,
     can_delete=True,
-    validate_min=True,
     min_num=1,
+    validate_min=True
 )
 
 
-# =========================================================
-# BALANCE FORM + FORMSET
-# =========================================================
+# ================================================================
+# BALANCE FORMS
+# ================================================================
+
 class BalanceForm(forms.ModelForm):
+    """
+    Balance management form for old outstanding balances.
+    """
     class Meta:
         model = Balance
         fields = ['party', 'item', 'quantity', 'price', 'discount_percent']
@@ -644,32 +583,35 @@ class BalanceForm(forms.ModelForm):
                 'class': 'form-select'
             }),
             'quantity': forms.NumberInput(attrs={
-                'class': 'form-control', 
+                'class': 'form-control',
                 'min': '0'
             }),
             'price': forms.NumberInput(attrs={
-                'class': 'form-control', 
-                'step': '0.01', 
+                'class': 'form-control',
+                'step': '0.01',
                 'min': '0'
             }),
             'discount_percent': forms.NumberInput(attrs={
-                'class': 'form-control', 
-                'step': '0.01', 
-                'min': '0', 
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
                 'max': '100'
-            }),
+            })
         }
 
-    def clean_discount_percent(self):
-        discount = self.cleaned_data.get('discount_percent')
-        if discount is not None and (discount < 0 or discount > 100):
-            raise ValidationError("Discount must be between 0% and 100%.")
-        return discount
+
+class BaseBalanceFormSet(BaseInlineFormSet):
+    """Custom formset for balance management"""
+    pass
 
 
-BalanceFormSet = forms.modelformset_factory(
+# Create the formset (not inline, but standalone)
+from django.forms import modelformset_factory
+
+BalanceFormSet = modelformset_factory(
     Balance,
     form=BalanceForm,
-    extra=1,
-    can_delete=True,
+    formset=BaseBalanceFormSet,
+    extra=3,
+    can_delete=True
 )

@@ -4,56 +4,138 @@
 {% block page_title %}Return List{% endblock %}
 
 {% block action_button %}
-<a href="{% url 'billing:return_create' %}" class="btn btn-gradient-primary">
-    <i class="bi bi-plus-circle"></i> Create Return
-</a>
+<div class="d-flex gap-2">
+    <a href="{% url 'billing:return_create' %}" class="btn btn-gradient-danger shadow-lg px-4">
+        <i class="bi bi-plus-circle me-2"></i> Create Return
+    </a>
+    <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#filterModal">
+        <i class="bi bi-funnel me-2"></i> Filter
+    </button>
+</div>
 {% endblock %}
 
 {% block billing_content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card list-card">
-            <!-- Card Header -->
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">
-                        <i class="bi bi-arrow-return-left"></i> Returns
-                    </h4>
-                    <div class="card-stats">
-                        <span class="badge bg-danger-soft">{{ returns.count }} Total</span>
+<section class="return-bg py-5">
+    <div class="container-fluid">
+        
+        <!-- Search & Stats Bar -->
+        <div class="row mb-4 g-3">
+            <!-- Search Box -->
+            <div class="col-lg-6">
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" 
+                           id="searchReturn" 
+                           class="form-control ps-5" 
+                           placeholder="Search by party name, invoice number, reason...">
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="col-lg-6">
+                <div class="d-flex gap-3 justify-content-lg-end flex-wrap">
+                    <div class="stat-card stat-card-danger">
+                        <i class="bi bi-arrow-return-left"></i>
+                        <div>
+                            <div class="stat-value">{{ returns.count|default:0 }}</div>
+                            <div class="stat-label">Total Returns</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card-danger">
+                        <i class="bi bi-currency-rupee"></i>
+                        <div>
+                            <div class="stat-value">
+                                ₹{% widthratio total_return_amount|default:0 1 1 %}
+                            </div>
+                            <div class="stat-label">Total Amount</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card-danger">
+                        <i class="bi bi-calendar-week"></i>
+                        <div>
+                            <div class="stat-value">{{ this_month_returns|default:0 }}</div>
+                            <div class="stat-label">This Month</div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Card Body -->
-            <div class="card-body">
+        <!-- Return Table Card -->
+        <div class="card-glass shadow-xl border-0 rounded-4 overflow-hidden">
+            <div class="card-header-custom">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    Return Records
+                </h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger" onclick="exportReturns()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table custom-table">
+                    <table class="table table-custom table-hover align-middle mb-0" id="returnTable">
                         <thead>
                             <tr>
-                                <th style="width: 5%;">#</th>
-                                <th style="width: 12%;">Date</th>
-                                <th style="width: 20%;">Party</th>
-                                <th style="width: 15%;">Invoice</th>
-                                <th style="width: 12%;" class="text-end">Amount</th>
-                                <th style="width: 25%;">Reason</th>
-                                <th style="width: 11%;" class="text-center">Actions</th>
+                                <th class="sortable" data-sort="number">
+                                    <div class="th-content">
+                                        # <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="date">
+                                    <div class="th-content">
+                                        Return Date <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="party">
+                                    <div class="th-content">
+                                        Party <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable" data-sort="invoice">
+                                    <div class="th-content">
+                                        Invoice <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th class="sortable text-end" data-sort="amount">
+                                    <div class="th-content justify-content-end">
+                                        Amount (₹) <i class="bi bi-arrow-down-up ms-1"></i>
+                                    </div>
+                                </th>
+                                <th>Reason</th>
+                                <th class="text-center">Items</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for return in returns %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
+                            <tr class="return-row fade-in" data-return-id="{{ return.pk }}" style="animation-delay: {{ forloop.counter0 }}00ms;">
+                                <td class="text-muted">
+                                    <span class="row-number">{{ forloop.counter }}</span>
+                                </td>
                                 <td>
-                                    <div class="date-cell">
-                                        <i class="bi bi-calendar3"></i>
-                                        {{ return.return_date|date:"d M, Y" }}
+                                    <div class="date-display">
+                                        <i class="bi bi-calendar3 text-danger me-1"></i>
+                                        {{ return.return_date|date:"d M Y" }}
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="party-cell">
-                                        <i class="bi bi-building"></i>
-                                        <span>{{ return.party.name }}</span>
+                                    <div class="party-info">
+                                        <div class="party-name">
+                                            <i class="bi bi-building me-2"></i>
+                                            {{ return.party.name }}
+                                        </div>
+                                        {% if return.party.phone %}
+                                        <small class="text-muted">
+                                            <i class="bi bi-telephone"></i> {{ return.party.phone }}
+                                        </small>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>
@@ -64,45 +146,72 @@
                                     </a>
                                 </td>
                                 <td class="text-end">
-                                    <span class="amount-badge amount-danger">
+                                    <span class="amount-display amount-danger">
                                         ₹{{ return.amount|floatformat:2 }}
                                     </span>
                                 </td>
                                 <td>
                                     <div class="reason-cell">
                                         {% if return.reason %}
-                                            <span class="reason-text" title="{{ return.reason }}">
-                                                {{ return.reason|truncatechars:50 }}
+                                            <span class="reason-text" 
+                                                  title="{{ return.reason }}"
+                                                  data-bs-toggle="tooltip"
+                                                  data-bs-placement="top">
+                                                {{ return.reason|truncatechars:40 }}
                                             </span>
                                         {% else %}
-                                            <span class="text-muted">N/A</span>
+                                            <span class="text-muted-light">
+                                                <i class="bi bi-dash-circle"></i> N/A
+                                            </span>
                                         {% endif %}
                                     </div>
                                 </td>
                                 <td class="text-center">
+                                    <span class="items-count-badge">
+                                        <i class="bi bi-box"></i>
+                                        {{ return.return_items.count|default:0 }}
+                                    </span>
+                                </td>
+                                <td>
                                     <div class="action-buttons">
-                                        <!-- Correct URL name: use 'billing:return_pdf' -->
-                                        <a href="{% url 'billing:return_pdf' return.id %}"
+                                        <!-- View Details -->
+                                        <a href="{% url 'billing:return_detail' return.pk %}" 
+                                           class="action-btn view-btn" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
 
-                                           class="btn btn-action btn-danger-soft" 
-                                           target="_blank" 
-                                           rel="noopener noreferrer"
-                                           title="Download Receipt">
+                                        <!-- Download PDF -->
+                                        <a href="{% url 'billing:return_pdf' return.id %}"
+                                           class="action-btn download-btn"
+                                           data-bs-toggle="tooltip" 
+                                           title="Download Receipt"
+                                           target="_blank">
                                             <i class="bi bi-file-pdf"></i>
+                                        </a>
+
+                                        <!-- View Invoice -->
+                                        <a href="{% url 'billing:invoice_detail' return.invoice.pk %}"
+                                           class="action-btn invoice-btn"
+                                           data-bs-toggle="tooltip" 
+                                           title="View Invoice">
+                                            <i class="bi bi-receipt"></i>
                                         </a>
                                     </div>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center empty-state">
-                                    <div class="empty-icon">
-                                        <i class="bi bi-inbox"></i>
+                                <td colspan="8" class="empty-state">
+                                    <div class="empty-state-content">
+                                        <i class="bi bi-arrow-return-left"></i>
+                                        <h5>No Returns Found</h5>
+                                        <p class="text-muted">No product returns have been recorded yet</p>
+                                        <a href="{% url 'billing:return_create' %}" class="btn btn-gradient-danger mt-3">
+                                            <i class="bi bi-plus-circle me-2"></i> Create First Return
+                                        </a>
                                     </div>
-                                    <p class="empty-text">No returns found</p>
-                                    <a href="{% url 'billing:return_create' %}" class="btn btn-sm btn-gradient-primary mt-2">
-                                        <i class="bi bi-plus-circle"></i> Create First Return
-                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -110,398 +219,864 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="card-footer-custom">
+                <nav aria-label="Return pagination">
+                    <ul class="pagination mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-funnel me-2"></i> Filter Returns
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="filterForm" method="get">
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="date_from" placeholder="From">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="date_to" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Party</label>
+                        <input type="text" class="form-control" name="party" placeholder="Party name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Search</label>
+                        <input type="text" class="form-control" name="search" placeholder="Invoice, reason...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-danger" onclick="document.getElementById('filterForm').submit();">Apply Filters</button>
+            </div>
         </div>
     </div>
 </div>
 
-{# Auto-download trigger: use the correct URL name and escape the JS value #}
+<!-- Auto Download Script -->
 {% if download_return %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const returnId = "{{ download_return|default:'' }}";
-
-    // If returnId exists, trigger auto-download
+    
     if (returnId !== "") {
-
         const pdfUrl = "{{ request.scheme }}://{{ request.get_host }}{% url 'billing:return_pdf' return_id=999999 %}"
-    .replace("999999", returnId);
-
-        // Open PDF
+            .replace("999999", returnId);
+        
         window.open(pdfUrl, "_blank", "noopener,noreferrer");
-
-        // Clear the session key to avoid repeated downloads
+        
+        // Clear session
         fetch("{% url 'billing:clear_pdf_session' %}", {
             method: "POST",
             headers: { "X-CSRFToken": "{{ csrf_token }}" }
         });
+        
+        // Show success toast
+        setTimeout(() => {
+            showToast('success', 'Return receipt downloaded successfully!');
+        }, 500);
     }
-
 });
 </script>
-
 {% endif %}
 
-
-
-
 <style>
-    /* --- Global Styles --- */
-    body {
-        background: linear-gradient(160deg, #0a0a0a, #111, #050505);
-        color: #e0e0e0;
-        padding-bottom: 80px;
+/* ========================================
+   Base Styles - Danger Theme
+======================================== */
+.return-bg {
+    background: linear-gradient(135deg, #1a0a0f 0%, #2d0a0a 50%, #1f0505 100%);
+    min-height: 100vh;
+    position: relative;
+}
+
+.return-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(220, 53, 69, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(220, 53, 69, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* ========================================
+   Glass Morphism Cards
+======================================== */
+.card-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(220, 53, 69, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card-glass:hover {
+    border-color: rgba(220, 53, 69, 0.3);
+    box-shadow: 0 8px 32px rgba(220, 53, 69, 0.15);
+}
+
+.card-header-custom {
+    background: rgba(220, 53, 69, 0.05);
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.card-header-custom h5 {
+    color: #dc3545;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.card-footer-custom {
+    background: rgba(220, 53, 69, 0.03);
+    border-top: 1px solid rgba(220, 53, 69, 0.1);
+    padding: 1rem 1.5rem;
+}
+
+/* ========================================
+   Search Box
+======================================== */
+.search-box {
+    position: relative;
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #dc3545;
+    font-size: 1.1rem;
+    z-index: 2;
+}
+
+.search-box input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #fff;
+    padding-left: 3rem;
+    border-radius: 50px;
+    height: 50px;
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15);
+    color: #fff;
+    outline: none;
+}
+
+.search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ========================================
+   Quick Stats Cards - Danger Theme
+======================================== */
+.stat-card-danger {
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+    min-width: 140px;
+}
+
+.stat-card-danger:hover {
+    background: rgba(220, 53, 69, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+.stat-card-danger i {
+    font-size: 1.5rem;
+    color: #dc3545;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #dc3545;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   Table Styles
+======================================== */
+.table-custom {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.table-custom thead {
+    background: rgba(220, 53, 69, 0.08);
+    border-bottom: 2px solid rgba(220, 53, 69, 0.3);
+}
+
+.table-custom thead th {
+    color: #dc3545;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+}
+
+.th-content {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.sortable:hover {
+    color: #fff !important;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.table-custom tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.table-custom tbody tr:hover {
+    background: rgba(220, 53, 69, 0.05);
+    transform: scale(1.002);
+}
+
+.table-custom tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border: none;
+}
+
+/* ========================================
+   Table Content Styles
+======================================== */
+.row-number {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.party-info .party-name {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+}
+
+.party-info small {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.invoice-link {
+    color: #17a2b8;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
+}
+
+.invoice-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.date-display {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.amount-display {
+    font-weight: 700;
+    font-size: 1.1rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.amount-danger {
+    color: #dc3545 !important;
+}
+
+.reason-cell {
+    max-width: 250px;
+}
+
+.reason-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.text-muted-light {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.items-count-badge {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* ========================================
+   Action Buttons
+======================================== */
+.action-buttons {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: 1.5px solid;
+    background: transparent;
+    font-size: 0.9rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.action-btn:hover::before {
+    width: 100%;
+    height: 100%;
+}
+
+.action-btn i {
+    position: relative;
+    z-index: 1;
+}
+
+/* View Button */
+.view-btn {
+    border-color: #007bff;
+    color: #007bff;
+}
+.view-btn::before {
+    background: #007bff;
+}
+.view-btn:hover {
+    color: white;
+    border-color: #0056b3;
+    box-shadow: 0 0 12px rgba(0, 123, 255, 0.4);
+}
+
+/* Download Button */
+.download-btn {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+.download-btn::before {
+    background: #dc3545;
+}
+.download-btn:hover {
+    color: white;
+    border-color: #bd2130;
+    box-shadow: 0 0 12px rgba(220, 53, 69, 0.4);
+}
+
+/* Invoice Button */
+.invoice-btn {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+.invoice-btn::before {
+    background: #17a2b8;
+}
+.invoice-btn:hover {
+    color: white;
+    border-color: #117a8b;
+    box-shadow: 0 0 12px rgba(23, 162, 184, 0.4);
+}
+
+/* ========================================
+   Empty State
+======================================== */
+.empty-state {
+    padding: 4rem 2rem !important;
+    background: rgba(220, 53, 69, 0.02);
+}
+
+.empty-state-content {
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.empty-state-content i {
+    font-size: 4rem;
+    color: rgba(220, 53, 69, 0.3);
+    margin-bottom: 1rem;
+}
+
+.empty-state-content h5 {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-content p {
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 1.5rem;
+}
+
+/* ========================================
+   Pagination
+======================================== */
+.pagination {
+    gap: 0.5rem;
+}
+
+.page-link {
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.page-link:hover {
+    background: rgba(220, 53, 69, 0.15);
+    border-color: #dc3545;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.page-item.active .page-link {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    font-weight: 600;
+}
+
+/* ========================================
+   Buttons
+======================================== */
+.btn-gradient-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.btn-gradient-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+    background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
+    color: white;
+}
+
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-danger:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.4);
+}
+
+.btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+/* ========================================
+   Modal Styles
+======================================== */
+.modal-glass {
+    background: rgba(45, 10, 10, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #fff;
+}
+
+.modal-glass .form-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.modal-glass .form-control,
+.modal-glass .form-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #fff;
+}
+
+.modal-glass .form-control:focus,
+.modal-glass .form-select:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #dc3545;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15);
+}
+
+.modal-glass .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========================================
+   Toast Notification
+======================================== */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(220, 53, 69, 0.95);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3);
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast-notification.success {
+    background: rgba(40, 167, 69, 0.95);
+}
+
+.toast-notification i {
+    font-size: 1.25rem;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
     }
-    
-    /* --- Card Styling --- */
-    .list-card {
-        background: rgba(10, 10, 10, 0.95);
-        backdrop-filter: blur(18px);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        overflow: hidden;
-        animation: fadeIn 0.6s ease-out;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    to {
+        transform: translateX(0);
+        opacity: 1;
     }
-    
-    /* --- Card Header --- */
-    .card-header {
-        background: linear-gradient(135deg, rgba(220, 53, 69, 0.25), rgba(139, 0, 0, 0.2));
-        padding: 30px 40px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   Animations
+======================================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
     }
-    
-    .card-title {
-        color: #dc3545;
-        font-size: 1.6rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 12px;
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
-    
-    .card-stats .badge {
-        font-size: 0.95rem;
-        padding: 8px 16px;
-        border-radius: 10px;
-        font-weight: 600;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+}
+
+/* ========================================
+   Responsive Design
+======================================== */
+@media (max-width: 992px) {
+    .stat-card-danger {
+        flex: 1;
+        min-width: 120px;
     }
-    
-    .bg-danger-soft {
-        background: rgba(220, 53, 69, 0.2);
-        color: #dc3545;
-        border: 1px solid rgba(220, 53, 69, 0.4);
-    }
-    
-    /* --- Card Body --- */
-    .card-body {
-        padding: 0;
-    }
-    
-    /* --- Table Styling --- */
-    .table-responsive {
-        margin: 0;
-    }
-    
-    .custom-table {
-        margin-bottom: 0;
-        background: rgba(15, 15, 15, 0.8);
-    }
-    
-    .custom-table thead {
-        background: rgba(220, 53, 69, 0.2);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-    
-    .custom-table th {
-        color: #dc3545;
-        font-weight: 600;
-        border-bottom: 2px solid rgba(220, 53, 69, 0.4);
-        padding: 18px 16px;
-        text-transform: uppercase;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
-        white-space: nowrap;
-    }
-    
-    .custom-table td {
-        padding: 16px;
-        vertical-align: middle;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        color: #d0d0d0;
-    }
-    
-    .custom-table tbody tr {
-        transition: all 0.3s ease;
-    }
-    
-    .custom-table tbody tr:hover {
-        background: rgba(220, 53, 69, 0.08);
-        transform: scale(1.01);
-    }
-    
-    /* --- Cell Styles --- */
-    .date-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #b0b0b0;
-        font-size: 0.95rem;
-    }
-    
-    .date-cell i {
-        color: #dc3545;
-        font-size: 1rem;
-    }
-    
-    .party-cell {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .party-cell i {
-        color: #dc3545;
-        font-size: 1.1rem;
-    }
-    
-    .party-cell span {
-        color: #f0f0f0;
-        font-weight: 500;
-    }
-    
-    .invoice-link {
-        color: #17a2b8;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 500;
-    }
-    
-    .invoice-link:hover {
-        color: #fff;
-        text-shadow: 0 0 10px rgba(23, 162, 184, 0.8);
-    }
-    
-    .invoice-link i {
-        font-size: 1rem;
-    }
-    
-    /* --- Amount Badge --- */
-    .amount-badge {
-        display: inline-block;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 1rem;
-    }
-    
-    .amount-danger {
-        background: rgba(220, 53, 69, 0.2);
-        color: #dc3545;
-        border: 1px solid rgba(220, 53, 69, 0.3);
-    }
-    
-    /* --- Reason Cell --- */
-    .reason-cell {
-        max-width: 300px;
-    }
-    
-    .reason-text {
-        color: #b0b0b0;
-        font-size: 0.9rem;
-        line-height: 1.4;
-        display: block;
-    }
-    
-    /* --- Action Buttons --- */
+}
+
+@media (max-width: 768px) {
     .action-buttons {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
+        gap: 0.3rem;
     }
     
-    .btn-action {
-        padding: 8px 12px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        border: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
     }
     
-    .btn-danger-soft {
-        background: rgba(220, 53, 69, 0.2);
-        color: #dc3545;
-        border: 1px solid rgba(220, 53, 69, 0.3);
+    .card-header-custom {
+        flex-direction: column;
+        align-items: flex-start;
     }
     
-    .btn-danger-soft:hover {
-        background: rgba(220, 53, 69, 0.3);
-        color: #fff;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+    .table-custom {
+        font-size: 0.85rem;
     }
     
-    .btn-action i {
-        font-size: 1.1rem;
+    .search-box input {
+        height: 45px;
+        font-size: 0.9rem;
     }
     
-    /* --- Empty State --- */
-    .empty-state {
-        padding: 60px 20px !important;
-        text-align: center;
+    .reason-cell {
+        max-width: 150px;
+    }
+}
+
+@media (max-width: 576px) {
+    .table-responsive {
+        overflow-x: auto;
     }
     
-    .empty-icon {
-        font-size: 4rem;
-        color: rgba(220, 53, 69, 0.3);
-        margin-bottom: 20px;
+    .table-custom {
+        min-width: 900px;
+    }
+}
+
+/* ========================================
+   Print Styles
+======================================== */
+@media print {
+    .return-bg::before,
+    .action-buttons,
+    .card-header-custom > div,
+    .search-box,
+    .stat-card-danger,
+    .pagination,
+    .btn,
+    button {
+        display: none !important;
     }
     
-    .empty-text {
-        color: #888;
-        font-size: 1.1rem;
-        margin-bottom: 0;
+    .card-glass {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
     }
     
-    /* --- Gradient Button --- */
-    .btn-gradient-primary {
-        background: linear-gradient(135deg, #dc3545, #8b0000);
-        border: none;
-        color: #fff;
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
+    .table-custom {
+        color: #000 !important;
     }
     
-    .btn-gradient-primary:hover {
-        background: linear-gradient(135deg, #8b0000, #dc3545);
-        transform: translateY(-2px);
-        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4);
-        color: #fff;
+    .table-custom thead {
+        background: #f8f9fa !important;
     }
     
-    /* --- Animation --- */
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .table-custom th {
+        color: #000 !important;
     }
     
-    /* --- Responsive Design --- */
-    @media (max-width: 1200px) {
-        .custom-table th,
-        .custom-table td {
-            padding: 12px 10px;
-            font-size: 0.9rem;
-        }
-        
-        .reason-cell {
-            max-width: 200px;
-        }
+    .table-custom td {
+        color: #000 !important;
     }
-    
-    @media (max-width: 768px) {
-        .card-header {
-            padding: 20px;
-        }
-        
-        .card-title {
-            font-size: 1.3rem;
-        }
-        
-        .custom-table {
-            font-size: 0.85rem;
-        }
-        
-        .custom-table th,
-        .custom-table td {
-            padding: 10px 8px;
-        }
-        
-        .action-buttons {
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .btn-action {
-            padding: 6px 10px;
-        }
-        
-        .reason-cell {
-            max-width: 150px;
-        }
-    }
-    
-    @media (max-width: 576px) {
-        /* Make table scrollable on mobile */
-        .table-responsive {
-            overflow-x: auto;
-        }
-        
-        .custom-table {
-            min-width: 800px;
-        }
-    }
-    
-    /* --- Print Styles --- */
-    @media print {
-        body {
-            background: white;
-            color: black;
-        }
-        
-        .list-card {
-            box-shadow: none;
-            border: 1px solid #ddd;
-        }
-        
-        .btn, .action-buttons, #action_button {
-            display: none !important;
-        }
-        
-        .card-header {
-            background: white;
-            color: black;
-        }
-        
-        .card-title {
-            color: #000;
-        }
-        
-        .custom-table {
-            background: white;
-        }
-        
-        .custom-table thead {
-            background: #f8f9fa;
-        }
-        
-        .custom-table th {
-            color: #000;
-            border-bottom: 2px solid #ddd;
-        }
-        
-        .custom-table td {
-            border-bottom: 1px solid #ddd;
-            color: #000;
-        }
-    }
+}
 </style>
 
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchReturn');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('.return-row');
+            
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Table sorting
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('.return-row'));
+            const index = Array.from(this.parentElement.children).indexOf(this);
+            const isAscending = this.classList.contains('sort-asc');
+            
+            rows.sort((a, b) => {
+                const aValue = a.cells[index].textContent.trim();
+                const bValue = b.cells[index].textContent.trim();
+                
+                // Try numeric comparison
+                const aNum = parseFloat(aValue.replace(/[₹,]/g, ''));
+                const bNum = parseFloat(bValue.replace(/[₹,]/g, ''));
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAscending ? bNum - aNum : aNum - bNum;
+                }
+                
+                // String comparison
+                if (isAscending) {
+                    return bValue.localeCompare(aValue, undefined, {numeric: true});
+                } else {
+                    return aValue.localeCompare(bValue, undefined, {numeric: true});
+                }
+            });
+            
+            // Toggle sort direction
+            sortableHeaders.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            this.classList.toggle('sort-asc', !isAscending);
+            this.classList.toggle('sort-desc', isAscending);
+            
+            // Reorder rows
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+});
+
+// Toast notification
+function showToast(type, message) {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Export returns
+function exportReturns() {
+    showToast('success', 'Export functionality - Implement CSV export');
+}
+</script>
 {% endblock %}
