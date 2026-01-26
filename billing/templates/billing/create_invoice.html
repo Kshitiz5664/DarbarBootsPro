@@ -110,13 +110,13 @@
                         <table class="table table-bordered invoice-items-table" id="itemsTable">
                             <thead>
                                 <tr>
-                                    <th style="width:25%;">Item</th>
+                                    <th style="width:20%;">Item</th>
                                     <th style="width:15%;">New Item</th>
                                     <th style="width:10%;">Qty</th>
-                                    <th style="width:12%;">Rate (₹)</th>
-                                    <th style="width:12%;">GST (₹)</th>
-                                    <th style="width:12%;">Discount (₹)</th>
-                                    <th style="width:12%;">Total (₹)</th>
+                                    <th style="width:10%;">Rate (₹)</th>
+                                    <th style="width:10%;">GST (₹)</th>
+                                    <th style="width:10%;">Disc (₹)</th>
+                                    <th style="width:15%;">Total (₹)</th>
                                     <th style="width:5%;">Action</th>
                                 </tr>
                             </thead>
@@ -129,7 +129,12 @@
                                     <td>{{ form.rate }}</td>
                                     <td>{{ form.gst_amount }}</td>
                                     <td>{{ form.discount_amount }}</td>
-                                    <td>{{ form.total }}</td>
+                                    <td>
+                                        <!-- ✅ VISIBLE TOTAL DISPLAY -->
+                                        <div class="item-total-display">₹0.00</div>
+                                        <!-- ✅ HIDDEN INPUT FOR FORM SUBMISSION -->
+                                        {{ form.total }}
+                                    </td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-danger remove-row-btn">
                                             <i class="bi bi-trash"></i>
@@ -142,7 +147,7 @@
                             <tfoot>
                                 <tr>
                                     <td colspan="6" class="text-end"><strong>Grand Total:</strong></td>
-                                    <td><strong id="grandTotal">₹ 0.00</strong></td>
+                                    <td><strong id="grandTotal">₹0.00</strong></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -267,9 +272,9 @@
 
 /* Base Input Styles - Dark Black Background for Perfect Visibility */
 .form-control, .form-select { 
-    background: #000000 !important; /* Pure black background */
+    background: #000000 !important;
     border: 1px solid rgba(0, 194, 255, 0.3); 
-    color: #ffffff !important; /* Pure white text */
+    color: #ffffff !important;
     border-radius: 10px; 
     padding: 12px 16px;
     transition: all 0.3s ease;
@@ -295,8 +300,8 @@ select.form-select {
 
 /* Dropdown Options - PERFECT VISIBILITY */
 select.form-select option {
-    background-color: #000000 !important; /* Pure black background */
-    color: #ffffff !important; /* Pure white text */
+    background-color: #000000 !important;
+    color: #ffffff !important;
     padding: 12px 8px !important;
     font-weight: 500;
     font-size: 14px;
@@ -304,13 +309,13 @@ select.form-select option {
 
 select.form-select option:hover,
 select.form-select option:focus {
-    background-color: #1a1a1a !important; /* Slightly lighter on hover */
-    color: #00c2ff !important; /* Cyan highlight text */
+    background-color: #1a1a1a !important;
+    color: #00c2ff !important;
 }
 
 select.form-select option:checked,
 select.form-select option:active {
-    background-color: #0d47a1 !important; /* Deep blue when selected */
+    background-color: #0d47a1 !important;
     color: #ffffff !important;
     font-weight: 600;
 }
@@ -342,7 +347,7 @@ select.form-select option:active {
     color: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* ==================== TABLE INPUTS - CONSISTENT DARK THEME ==================== */
+/* ==================== TABLE STYLES ==================== */
 .invoice-items-table { 
     background: rgba(10, 10, 20, 0.6); 
     border: 1px solid rgba(0, 194, 255, 0.25); 
@@ -358,8 +363,9 @@ select.form-select option:active {
     color: #00c2ff; 
     border-color: rgba(0, 194, 255, 0.25); 
     font-weight: 600;
-    padding: 12px;
+    padding: 12px 8px;
     text-align: center;
+    font-size: 0.9rem;
 }
 
 .invoice-items-table td { 
@@ -367,6 +373,7 @@ select.form-select option:active {
     border-color: rgba(0, 194, 255, 0.15); 
     background: rgba(20, 20, 40, 0.5); 
     padding: 8px;
+    vertical-align: middle;
 }
 
 .invoice-items-table tr:hover td { 
@@ -379,8 +386,8 @@ select.form-select option:active {
     background: #000000 !important;
     color: #ffffff !important;
     border: 1px solid rgba(0, 194, 255, 0.25);
-    font-size: 14px;
-    padding: 8px 12px;
+    font-size: 13px;
+    padding: 6px 10px;
 }
 
 .invoice-items-table input.form-control:focus,
@@ -391,6 +398,28 @@ select.form-select option:active {
     color: #ffffff !important;
 }
 
+/* ✅ ITEM TOTAL DISPLAY - HIGHLY VISIBLE */
+.item-total-display {
+    font-weight: 700;
+    color: #00ff88;
+    font-size: 1.05rem;
+    text-align: center;
+    padding: 8px 10px;
+    background: rgba(0, 255, 136, 0.12);
+    border-radius: 8px;
+    border: 1.5px solid rgba(0, 255, 136, 0.35);
+    min-width: 100px;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.item-total-display:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    background: rgba(0, 255, 136, 0.18);
+}
+
 /* Table Footer - Grand Total */
 .invoice-items-table tfoot td {
     background: rgba(0, 194, 255, 0.15);
@@ -398,6 +427,15 @@ select.form-select option:active {
     font-weight: 700;
     font-size: 1.1rem;
     padding: 15px;
+    border-top: 2px solid rgba(0, 194, 255, 0.4);
+}
+
+#grandTotal {
+    font-size: 1.4rem !important;
+    font-weight: 800 !important;
+    color: #00c2ff !important;
+    text-shadow: 0 0 12px rgba(0, 194, 255, 0.6);
+    letter-spacing: 1px;
 }
 
 /* ==================== NUMBER & DATE INPUTS ==================== */
@@ -406,8 +444,8 @@ select.form-select option:active {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     opacity: 1;
-    height: 40px;
-    filter: invert(1) brightness(1.5); /* Make arrows white and bright */
+    height: 30px;
+    filter: invert(1) brightness(1.5);
 }
 
 /* Firefox Number Input */
@@ -417,7 +455,7 @@ input[type="number"] {
 
 /* Date Input Calendar Icon */
 input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.2); /* Make calendar icon white */
+    filter: invert(1) brightness(1.2);
     cursor: pointer;
     font-size: 1.1rem;
 }
@@ -571,6 +609,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
 }
 
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        background: rgba(0, 255, 136, 0.12);
+    }
+    50% {
+        transform: scale(1.05);
+        background: rgba(0, 255, 136, 0.25);
+        box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+    }
+}
+
 .form-card {
     animation: fadeIn 0.6s ease-out;
 }
@@ -618,42 +668,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
     
     .invoice-items-table {
-        font-size: 12px;
+        font-size: 11px;
     }
     
     .invoice-items-table th,
     .invoice-items-table td {
-        padding: 6px;
+        padding: 4px;
     }
-       .invoice-items-table {
-        display: none; /* Hide table on mobile */
+    
+    .item-total-display {
+        font-size: 0.9rem;
+        padding: 6px 8px;
     }
-
-    .mobile-item-card {
-        background: rgba(10, 10, 30, 0.9);
-        border: 1px solid rgba(0, 194, 255, 0.3);
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 16px;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .mobile-item-card label {
-        font-size: 0.8rem;
-        color: #00c2ff;
-        font-weight: 600;
-        margin-top: 10px;
-        display: block;
-    }
-
-    .mobile-item-card .form-control,
-    .mobile-item-card .form-select {
-        margin-top: 4px;
-    }
-
-    .mobile-item-card .remove-row-btn {
-        width: 100%;
-        margin-top: 12px;
+    
+    #grandTotal {
+        font-size: 1.1rem !important;
     }
 }
 
@@ -668,8 +697,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     
     .invoice-items-table th,
     .invoice-items-table td {
-        font-size: 11px;
-        padding: 4px;
+        font-size: 10px;
+        padding: 3px;
     }
 }
 
@@ -742,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalFormsInput = document.getElementById(`id_${formPrefix}-TOTAL_FORMS`);
     const safeFloat = v => parseFloat(v) || 0;
 
-    console.log('🚀 Invoice form initialized with FIXED total calculation');
+    console.log('🚀 Invoice form initialized - Item totals now VISIBLE!');
 
     // ==================== Limit Checkbox Handler ====================
     function updateLimitUI() {
@@ -797,38 +826,68 @@ document.addEventListener('DOMContentLoaded', function() {
         const gstInput = row.querySelector("input[name$='-gst_amount']");
         const discount = safeFloat(row.querySelector("input[name$='-discount_amount']")?.value);
         const totalInput = row.querySelector("input[name$='-total']");
+        const totalDisplay = row.querySelector(".item-total-display"); // ✅ Get visible display
         
         const itemSelect = row.querySelector("select[name$='-item']");
         const itemId = itemSelect ? itemSelect.value : null;
         
-        // ✅ FIXED: Always calculate and update grand total
         if (itemId) {
+            // Fetch GST from item
             fetchItemGSTPercent(itemId).then(gstPercent => {
                 const baseAmount = qty * rate;
                 const gstAmount = (baseAmount * gstPercent) / 100;
                 const total = baseAmount + gstAmount - discount;
                 
+                // Update hidden field
                 if (gstInput) gstInput.value = gstAmount.toFixed(2);
                 if (totalInput) totalInput.value = total.toFixed(2);
                 
-                // ✅ Force immediate recalculation
+                // ✅ Update visible display with animation
+                if (totalDisplay) {
+                    totalDisplay.textContent = "₹" + total.toFixed(2);
+                    totalDisplay.style.animation = 'pulse 0.4s ease';
+                    setTimeout(() => {
+                        totalDisplay.style.animation = '';
+                    }, 400);
+                }
+                
+                console.log(`📊 Row calculated: Qty(${qty}) × Rate(${rate}) + GST(${gstAmount.toFixed(2)}) - Disc(${discount}) = ₹${total.toFixed(2)}`);
+                
                 setTimeout(() => calcGrand(), 10);
             }).catch(err => {
                 console.error('GST fetch failed:', err);
-                // ✅ Fallback: Calculate without fetching GST
+                // Fallback calculation
                 const gst = safeFloat(gstInput?.value || 0);
                 const baseAmount = qty * rate;
                 const total = baseAmount + gst - discount;
                 
                 if (totalInput) totalInput.value = total.toFixed(2);
+                
+                // ✅ Update visible display
+                if (totalDisplay) {
+                    totalDisplay.textContent = "₹" + total.toFixed(2);
+                }
+                
                 calcGrand();
             });
         } else {
+            // No item selected
             const gst = safeFloat(gstInput?.value || 0);
             const baseAmount = qty * rate;
             const total = baseAmount + gst - discount;
             
+            // Update hidden field
             if (totalInput) totalInput.value = total.toFixed(2);
+            
+            // ✅ Update visible display
+            if (totalDisplay) {
+                totalDisplay.textContent = "₹" + total.toFixed(2);
+                totalDisplay.style.animation = 'pulse 0.4s ease';
+                setTimeout(() => {
+                    totalDisplay.style.animation = '';
+                }, 400);
+            }
+            
             calcGrand();
         }
     }
@@ -836,7 +895,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function calcGrand() {
         let total = 0;
         
-        // ✅ FIXED: More robust selector
         const totalInputs = document.querySelectorAll("input[name$='-total']");
         
         console.log(`🧮 Calculating grand total from ${totalInputs.length} items`);
@@ -850,16 +908,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`✅ Grand Total: ₹${total.toFixed(2)}`);
         
         if (grandTotalEl) {
-            grandTotalEl.textContent = "₹ " + total.toFixed(2);
+            grandTotalEl.textContent = "₹" + total.toFixed(2);
             
-            // ✅ Visual feedback
+            // Visual feedback
             grandTotalEl.style.transition = 'all 0.3s ease';
-            grandTotalEl.style.transform = 'scale(1.05)';
+            grandTotalEl.style.transform = 'scale(1.08)';
             grandTotalEl.style.color = '#00ff88';
+            grandTotalEl.style.textShadow = '0 0 15px rgba(0, 255, 136, 0.8)';
             
             setTimeout(() => {
                 grandTotalEl.style.transform = 'scale(1)';
                 grandTotalEl.style.color = '#00c2ff';
+                grandTotalEl.style.textShadow = '0 0 12px rgba(0, 194, 255, 0.6)';
             }, 300);
         }
         
@@ -870,7 +930,10 @@ document.addEventListener('DOMContentLoaded', function() {
     itemsTableBody.addEventListener('input', e => {
         if (['quantity', 'rate', 'discount_amount'].some(f => e.target.name.includes(f))) {
             const row = e.target.closest('tr');
-            if (row) calcTotal(row);
+            if (row) {
+                console.log('📝 Input changed, recalculating...');
+                calcTotal(row);
+            }
         }
     });
 
@@ -878,6 +941,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target && e.target.name && e.target.name.includes('-item')) {
             const row = e.target.closest('tr');
             const itemId = e.target.value;
+            
+            console.log('🔄 Item selected:', itemId);
+            
             if (!itemId) { 
                 const gstInput = row.querySelector("input[name$='-gst_amount']");
                 if (gstInput) gstInput.value = '0.00';
@@ -891,7 +957,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 const rateInput = row.querySelector("input[name$='-rate']");
-                if (rateInput) rateInput.value = Number(data.wholesale_rate || 0).toFixed(2);
+                if (rateInput) {
+                    rateInput.value = Number(data.wholesale_rate || 0).toFixed(2);
+                    console.log('💰 Rate auto-filled:', rateInput.value);
+                }
                 
                 calcTotal(row);
             } catch (err) {
@@ -903,6 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
     addItemBtn.addEventListener('click', () => {
         const index = Number(totalFormsInput.value || 0);
         const templateRow = itemsTableBody.querySelector('.item-row:last-child');
+        
         if (!templateRow) {
             console.error('❌ No template row found!');
             return;
@@ -910,6 +980,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const newRow = templateRow.cloneNode(true);
         
+        // Reset all inputs
         newRow.querySelectorAll('input, select, textarea').forEach(input => {
             if (input.name) input.name = input.name.replace(/-\d+-/, `-${index}-`);
             if (input.id) input.id = input.id.replace(/-\d+-/, `-${index}-`);
@@ -930,14 +1001,25 @@ document.addEventListener('DOMContentLoaded', function() {
             input.classList.remove('is-invalid');
         });
 
+        // ✅ Reset visible total display
+        const totalDisplay = newRow.querySelector('.item-total-display');
+        if (totalDisplay) {
+            totalDisplay.textContent = '₹0.00';
+            totalDisplay.style.animation = '';
+        }
+
         itemsTableBody.appendChild(newRow);
         totalFormsInput.value = index + 1;
+        
+        console.log(`➕ Row added (Total rows: ${index + 1})`);
+        
         calcTotal(newRow);
     });
 
     itemsTableBody.addEventListener('click', e => {
         const btn = e.target.closest('.remove-row-btn');
         if (!btn) return;
+        
         const rows = itemsTableBody.querySelectorAll('.item-row');
         if (rows.length <= 1) {
             alert('⚠️ At least one item is required!');
@@ -946,6 +1028,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const row = btn.closest('tr');
         const deleteInput = row.querySelector("input[name$='-DELETE']");
+        
         if (deleteInput) {
             deleteInput.checked = true;
             row.style.display = 'none';
@@ -954,6 +1037,7 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFormsInput.value = Math.max(1, Number(totalFormsInput.value) - 1);
         }
         
+        console.log('🗑️ Row removed');
         calcGrand();
     });
 
@@ -982,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const total = calcGrand();
+        console.log(`📋 Submitting invoice with ${validRows.length} items, total: ₹${total.toFixed(2)}`);
 
         const newPartyName = document.getElementById('id_new_party_name');
         if (!partySelect.value && !newPartyName.value.trim()) {
@@ -1009,16 +1094,19 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Invoice...';
     });
 
-    // ✅ FIXED: Initial calculations with delay for all async operations
-    document.querySelectorAll('.item-row').forEach(row => calcTotal(row));
+    // ✅ Initial calculations
+    console.log('🔧 Running initial calculations...');
+    document.querySelectorAll('.item-row').forEach((row, idx) => {
+        console.log(`  Calculating row ${idx + 1}...`);
+        calcTotal(row);
+    });
 
-    // ✅ Force recalculation after a short delay to catch all async operations
+    // ✅ Recalculate after async operations complete
     setTimeout(() => {
-        console.log('🔄 Recalculating grand total after page load...');
+        console.log('🔄 Recalculating after page load...');
         calcGrand();
     }, 500);
 
-    // ✅ Also recalculate when window fully loads
     window.addEventListener('load', () => {
         setTimeout(() => {
             console.log('🔄 Final recalculation on window load...');

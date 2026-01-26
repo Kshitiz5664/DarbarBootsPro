@@ -1,17 +1,14 @@
 {% extends "billing/base.html" %}
 {% load static %}
 
-{% block page_title %}Challan Details - {{ challan.challan_number }}{% endblock %}
+{% block page_title %}Return Details - {{ return_obj.return_number }}{% endblock %}
 
 {% block action_button %}
 <div class="d-flex gap-2">
-    <a href="{% url 'billing:challan_list' %}" class="btn btn-outline-light">
+    <a href="{% url 'billing:return_list' %}" class="btn btn-outline-light">
         <i class="bi bi-arrow-left me-1"></i> Back
     </a>
-    <a href="{% url 'billing:challan_update' challan.id %}" class="btn btn-gradient-warning">
-        <i class="bi bi-pencil me-1"></i> Edit
-    </a>
-    <a href="{% url 'billing:challan_pdf' challan.id %}" class="btn btn-gradient-info" target="_blank">
+    <a href="{% url 'billing:return_pdf' return_obj.id %}" class="btn btn-gradient-danger" target="_blank">
         <i class="bi bi-download me-1"></i> PDF
     </a>
     <button onclick="window.print()" class="btn btn-outline-light">
@@ -21,7 +18,7 @@
 {% endblock %}
 
 {% block billing_content %}
-<section class="challan-detail-bg py-5">
+<section class="return-detail-bg py-5">
     <div class="container-fluid">
         <div class="row justify-content-center">
             <div class="col-lg-10">
@@ -35,28 +32,28 @@
                             <div class="col-md-8">
                                 <div class="header-icon-wrapper">
                                     <div class="header-icon">
-                                        <i class="bi bi-truck-flatbed"></i>
+                                        <i class="bi bi-arrow-return-left"></i>
                                     </div>
                                     <div>
-                                        <h2 class="detail-title mb-2">Delivery Challan</h2>
-                                        <p class="challan-number mb-0">{{ challan.challan_number }}</p>
+                                        <h2 class="detail-title mb-2">Return Receipt</h2>
+                                        <p class="return-number mb-0">{{ return_obj.return_number }}</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                                <div class="status-badge-large">
+                                <div class="status-badge-large status-badge-return">
                                     <i class="bi bi-check-circle-fill"></i>
-                                    Active
+                                    Processed
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Challan Information Section -->
+                    <!-- Return Information Section -->
                     <div class="detail-section">
                         <h5 class="section-title">
                             <i class="bi bi-info-circle-fill"></i>
-                            Challan Information
+                            Return Information
                         </h5>
                         
                         <div class="row g-4">
@@ -66,8 +63,8 @@
                                         <i class="bi bi-hash"></i>
                                     </div>
                                     <div class="info-content">
-                                        <label class="info-label">Challan Number</label>
-                                        <div class="info-value">{{ challan.challan_number }}</div>
+                                        <label class="info-label">Return Number</label>
+                                        <div class="info-value">{{ return_obj.return_number }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -78,8 +75,8 @@
                                         <i class="bi bi-calendar-event"></i>
                                     </div>
                                     <div class="info-content">
-                                        <label class="info-label">Challan Date</label>
-                                        <div class="info-value">{{ challan.date|date:"d M, Y" }}</div>
+                                        <label class="info-label">Return Date</label>
+                                        <div class="info-value">{{ return_obj.return_date|date:"d M, Y" }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -91,10 +88,10 @@
                                     </div>
                                     <div class="info-content">
                                         <label class="info-label">Party Name</label>
-                                        <div class="info-value">{{ challan.party.name }}</div>
-                                        {% if challan.party.phone %}
+                                        <div class="info-value">{{ return_obj.party.name }}</div>
+                                        {% if return_obj.party.phone %}
                                         <small class="text-muted d-block mt-1">
-                                            <i class="bi bi-telephone"></i> {{ challan.party.phone }}
+                                            <i class="bi bi-telephone"></i> {{ return_obj.party.phone }}
                                         </small>
                                         {% endif %}
                                     </div>
@@ -109,29 +106,62 @@
                                     <div class="info-content">
                                         <label class="info-label">Related Invoice</label>
                                         <div class="info-value">
-                                            {% if challan.invoice %}
-                                                <a href="{% url 'billing:invoice_detail' challan.invoice.id %}" class="invoice-link-detail">
-                                                    <i class="bi bi-box-arrow-up-right"></i>
-                                                    {{ challan.invoice.invoice_number }}
-                                                </a>
-                                            {% else %}
-                                                <span class="text-muted-custom">No invoice linked</span>
-                                            {% endif %}
+                                            <a href="{% url 'billing:invoice_detail' return_obj.invoice.id %}" class="invoice-link-detail">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                                {{ return_obj.invoice.invoice_number }}
+                                            </a>
                                         </div>
+                                        <small class="text-muted d-block mt-1">
+                                            <i class="bi bi-calendar"></i> {{ return_obj.invoice.date|date:"d M, Y" }}
+                                        </small>
                                     </div>
                                 </div>
                             </div>
                             
-                            {% if challan.transport_details %}
-                            <div class="col-12">
-                                <div class="info-card transport-card">
+                            <div class="col-md-12">
+                                <div class="info-card amount-card">
                                     <div class="info-icon">
-                                        <i class="bi bi-truck"></i>
+                                        <i class="bi bi-currency-rupee"></i>
                                     </div>
                                     <div class="info-content">
-                                        <label class="info-label">Transport Details</label>
-                                        <div class="transport-details-content">
-                                            {{ challan.transport_details|linebreaks }}
+                                        <label class="info-label">Return Amount</label>
+                                        <div class="info-value amount-value">₹{{ return_obj.amount|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if return_obj.reason %}
+                            <div class="col-12">
+                                <div class="info-card reason-card">
+                                    <div class="info-icon">
+                                        <i class="bi bi-chat-left-text"></i>
+                                    </div>
+                                    <div class="info-content">
+                                        <label class="info-label">Return Reason</label>
+                                        <div class="reason-content">
+                                            {{ return_obj.reason|linebreaks }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if return_obj.image %}
+                            <div class="col-12">
+                                <div class="info-card image-card">
+                                    <div class="info-icon">
+                                        <i class="bi bi-image"></i>
+                                    </div>
+                                    <div class="info-content">
+                                        <label class="info-label">Attached Image</label>
+                                        <div class="image-preview mt-3">
+                                            <a href="{{ return_obj.image.url }}" target="_blank" class="image-link">
+                                                <img src="{{ return_obj.image.url }}" alt="Return Image" class="return-image">
+                                                <div class="image-overlay">
+                                                    <i class="bi bi-zoom-in"></i>
+                                                    <span>View Full Size</span>
+                                                </div>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -140,15 +170,16 @@
                         </div>
                     </div>
 
-                    <!-- Items Section -->
+                    <!-- Return Items Section -->
+                    {% if return_items %}
                     <div class="detail-section section-items">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="section-title mb-0">
                                 <i class="bi bi-box-seam-fill"></i>
-                                Items to Deliver
+                                Returned Items
                             </h5>
                             <div class="items-count-badge">
-                                {{ items.count }} Item{{ items.count|pluralize }}
+                                {{ return_items.count }} Item{{ return_items.count|pluralize }}
                             </div>
                         </div>
                         
@@ -157,13 +188,15 @@
                                 <thead>
                                     <tr>
                                         <th style="width: 5%;">#</th>
-                                        <th style="width: 50%;">Item Name</th>
-                                        <th style="width: 20%;">HSN Code</th>
-                                        <th style="width: 25%;" class="text-end">Quantity</th>
+                                        <th style="width: 35%;">Item Name</th>
+                                        <th style="width: 15%;">HSN Code</th>
+                                        <th style="width: 15%;" class="text-end">Quantity</th>
+                                        <th style="width: 15%;" class="text-end">Rate</th>
+                                        <th style="width: 15%;" class="text-end">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for item in items %}
+                                    {% for item in return_items %}
                                     <tr class="item-row">
                                         <td>
                                             <span class="item-number">{{ forloop.counter }}</span>
@@ -171,17 +204,18 @@
                                         <td>
                                             <div class="item-details">
                                                 <div class="item-name">
-                                                    <i class="bi bi-box text-purple"></i>
-                                                    {{ item.item.name }}
+                                                    <i class="bi bi-box text-danger"></i>
+                                                    {% if item.invoice_item.item %}
+                                                        {{ item.invoice_item.item.name }}
+                                                    {% else %}
+                                                        Manual Item
+                                                    {% endif %}
                                                 </div>
-                                                {% if item.item.description %}
-                                                    <small class="item-description">{{ item.item.description }}</small>
-                                                {% endif %}
                                             </div>
                                         </td>
                                         <td>
-                                            {% if item.item.hsn_code %}
-                                                <span class="hsn-badge">{{ item.item.hsn_code }}</span>
+                                            {% if item.invoice_item.item.hsn_code %}
+                                                <span class="hsn-badge">{{ item.invoice_item.item.hsn_code }}</span>
                                             {% else %}
                                                 <span class="text-muted-custom">-</span>
                                             {% endif %}
@@ -192,13 +226,19 @@
                                                 {{ item.quantity }}
                                             </span>
                                         </td>
+                                        <td class="text-end">
+                                            <span class="rate-text">₹{{ item.invoice_item.rate|floatformat:2 }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="amount-text">₹{{ item.amount|floatformat:2 }}</span>
+                                        </td>
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="4" class="text-center py-5">
+                                        <td colspan="6" class="text-center py-5">
                                             <div class="empty-items">
                                                 <i class="bi bi-inbox"></i>
-                                                <p>No items found</p>
+                                                <p>No return items found</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -206,17 +246,18 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="total-row">
-                                        <td colspan="3" class="text-end">
-                                            <strong>Total Items:</strong>
+                                        <td colspan="5" class="text-end">
+                                            <strong>Total Return Amount:</strong>
                                         </td>
                                         <td class="text-end">
-                                            <strong class="total-items-value">{{ items.count }}</strong>
+                                            <strong class="total-amount-value">₹{{ return_obj.amount|floatformat:2 }}</strong>
                                         </td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                     </div>
+                    {% endif %}
 
                     <!-- Metadata Section -->
                     <div class="detail-section metadata-section">
@@ -232,18 +273,18 @@
                                         <i class="bi bi-person-plus-fill"></i>
                                     </div>
                                     <div class="metadata-content">
-                                        <small class="metadata-label">Created By</small>
+                                        <small class="metadata-label">Processed By</small>
                                         <div class="metadata-value">
-                                            {{ challan.created_by.get_full_name|default:challan.created_by.username }}
+                                            {{ return_obj.created_by.get_full_name|default:return_obj.created_by.username }}
                                         </div>
                                         <small class="metadata-date">
-                                            {{ challan.created_at|date:"d M, Y h:i A" }}
+                                            {{ return_obj.created_at|date:"d M, Y h:i A" }}
                                         </small>
                                     </div>
                                 </div>
                             </div>
                             
-                            {% if challan.updated_by %}
+                            {% if return_obj.updated_by %}
                             <div class="col-md-6">
                                 <div class="metadata-card">
                                     <div class="metadata-icon">
@@ -252,10 +293,10 @@
                                     <div class="metadata-content">
                                         <small class="metadata-label">Last Updated By</small>
                                         <div class="metadata-value">
-                                            {{ challan.updated_by.get_full_name|default:challan.updated_by.username }}
+                                            {{ return_obj.updated_by.get_full_name|default:return_obj.updated_by.username }}
                                         </div>
                                         <small class="metadata-date">
-                                            {{ challan.updated_at|date:"d M, Y h:i A" }}
+                                            {{ return_obj.updated_at|date:"d M, Y h:i A" }}
                                         </small>
                                     </div>
                                 </div>
@@ -266,11 +307,11 @@
 
                     <!-- Action Footer -->
                     <div class="detail-actions-footer">
-                        <a href="{% url 'billing:challan_update' challan.id %}" class="btn btn-action-footer btn-warning">
-                            <i class="bi bi-pencil-square"></i>
-                            Edit Challan
+                        <a href="{% url 'billing:invoice_detail' return_obj.invoice.id %}" class="btn btn-action-footer btn-info">
+                            <i class="bi bi-receipt"></i>
+                            View Invoice
                         </a>
-                        <a href="{% url 'billing:challan_pdf' challan.id %}" class="btn btn-action-footer btn-info" target="_blank">
+                        <a href="{% url 'billing:return_pdf' return_obj.id %}" class="btn btn-action-footer btn-danger" target="_blank">
                             <i class="bi bi-file-pdf-fill"></i>
                             Download PDF
                         </a>
@@ -278,9 +319,9 @@
                             <i class="bi bi-printer-fill"></i>
                             Print
                         </button>
-                        <a href="{% url 'billing:challan_list' %}" class="btn btn-action-footer btn-outline-light">
+                        <a href="{% url 'billing:return_list' %}" class="btn btn-action-footer btn-outline-light">
                             <i class="bi bi-list-ul"></i>
-                            All Challans
+                            All Returns
                         </a>
                     </div>
                 </div>
@@ -294,7 +335,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("download") === "1") {
-        const pdfUrl = "{% url 'billing:challan_pdf' challan.id %}";
+        const pdfUrl = "{% url 'billing:return_pdf' return_obj.id %}";
         window.open(pdfUrl, "_blank");
         window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -305,13 +346,13 @@ document.addEventListener("DOMContentLoaded", () => {
 /* ========================================
    Base Styles
 ======================================== */
-.challan-detail-bg {
-    background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #16003b 100%);
+.return-detail-bg {
+    background: linear-gradient(135deg, #1a0a0f 0%, #2e0a1a 50%, #3b0016 100%);
     min-height: 100vh;
     position: relative;
 }
 
-.challan-detail-bg::before {
+.return-detail-bg::before {
     content: '';
     position: absolute;
     top: 0;
@@ -319,8 +360,8 @@ document.addEventListener("DOMContentLoaded", () => {
     right: 0;
     bottom: 0;
     background: 
-        radial-gradient(circle at 20% 30%, rgba(111, 66, 193, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(111, 66, 193, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 30%, rgba(220, 53, 69, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(220, 53, 69, 0.05) 0%, transparent 50%);
     pointer-events: none;
 }
 
@@ -330,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
 .card-glass-detail {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(25px);
-    border: 1px solid rgba(111, 66, 193, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.2);
     animation: slideUp 0.5s ease;
 }
 
@@ -349,9 +390,9 @@ document.addEventListener("DOMContentLoaded", () => {
    Header Section
 ======================================== */
 .detail-header {
-    background: linear-gradient(135deg, rgba(111, 66, 193, 0.15) 0%, rgba(90, 50, 163, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(193, 45, 60, 0.1) 100%);
     padding: 2.5rem 2rem;
-    border-bottom: 2px solid rgba(111, 66, 193, 0.2);
+    border-bottom: 2px solid rgba(220, 53, 69, 0.2);
 }
 
 .header-icon-wrapper {
@@ -363,25 +404,25 @@ document.addEventListener("DOMContentLoaded", () => {
 .header-icon {
     width: 70px;
     height: 70px;
-    background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+    background: linear-gradient(135deg, #dc3545 0%, #c1354c 100%);
     border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 2rem;
     color: white;
-    box-shadow: 0 8px 20px rgba(111, 66, 193, 0.3);
+    box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
 }
 
 .detail-title {
-    color: #a78bfa;
+    color: #ff6b7a;
     font-size: 1.8rem;
     font-weight: 700;
     margin: 0;
     letter-spacing: 0.5px;
 }
 
-.challan-number {
+.return-number {
     color: rgba(255, 255, 255, 0.7);
     font-size: 1.1rem;
     font-family: 'Courier New', monospace;
@@ -401,6 +442,12 @@ document.addEventListener("DOMContentLoaded", () => {
     font-size: 1rem;
 }
 
+.status-badge-return {
+    background: rgba(220, 53, 69, 0.15);
+    border-color: rgba(220, 53, 69, 0.4);
+    color: #dc3545;
+}
+
 /* ========================================
    Detail Sections
 ======================================== */
@@ -414,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .section-title {
-    color: #a78bfa;
+    color: #ff6b7a;
     font-size: 1.3rem;
     font-weight: 700;
     margin-bottom: 1.5rem;
@@ -434,7 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
 ======================================== */
 .info-card {
     background: rgba(15, 15, 30, 0.6);
-    border: 1px solid rgba(111, 66, 193, 0.15);
+    border: 1px solid rgba(220, 53, 69, 0.15);
     border-radius: 14px;
     padding: 1.25rem;
     transition: all 0.3s ease;
@@ -446,26 +493,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .info-card:hover {
     background: rgba(25, 25, 40, 0.8);
-    border-color: rgba(111, 66, 193, 0.3);
+    border-color: rgba(220, 53, 69, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(111, 66, 193, 0.15);
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.15);
 }
 
 .info-card-highlight {
-    border-color: rgba(111, 66, 193, 0.4);
-    background: rgba(111, 66, 193, 0.08);
+    border-color: rgba(220, 53, 69, 0.4);
+    background: rgba(220, 53, 69, 0.08);
 }
 
 .info-icon {
     width: 45px;
     height: 45px;
-    background: rgba(111, 66, 193, 0.15);
+    background: rgba(220, 53, 69, 0.15);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.3rem;
-    color: #a78bfa;
+    color: #ff6b7a;
     flex-shrink: 0;
 }
 
@@ -509,13 +556,25 @@ document.addEventListener("DOMContentLoaded", () => {
     font-style: italic;
 }
 
-/* Transport Card */
-.transport-card {
-    background: rgba(111, 66, 193, 0.05);
-    border-left: 4px solid #6f42c1;
+/* Amount Card */
+.amount-card {
+    background: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid #dc3545;
 }
 
-.transport-details-content {
+.amount-value {
+    color: #ff6b7a !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+}
+
+/* Reason Card */
+.reason-card {
+    background: rgba(220, 53, 69, 0.05);
+    border-left: 4px solid #dc3545;
+}
+
+.reason-content {
     color: rgba(255, 255, 255, 0.85);
     font-size: 0.95rem;
     line-height: 1.7;
@@ -523,6 +582,62 @@ document.addEventListener("DOMContentLoaded", () => {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     margin-top: 0.5rem;
+}
+
+/* Image Card */
+.image-card {
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.image-preview {
+    position: relative;
+    display: inline-block;
+}
+
+.image-link {
+    position: relative;
+    display: block;
+    text-decoration: none;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.return-image {
+    max-width: 400px;
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 2px solid rgba(220, 53, 69, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    color: white;
+    gap: 0.5rem;
+}
+
+.image-overlay i {
+    font-size: 2rem;
+}
+
+.image-link:hover .return-image {
+    transform: scale(1.05);
+}
+
+.image-link:hover .image-overlay {
+    opacity: 1;
 }
 
 /* ========================================
@@ -533,13 +648,13 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .items-count-badge {
-    background: rgba(111, 66, 193, 0.2);
-    color: #a78bfa;
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b7a;
     padding: 0.5rem 1rem;
     border-radius: 50px;
     font-weight: 700;
     font-size: 0.9rem;
-    border: 1px solid rgba(111, 66, 193, 0.4);
+    border: 1px solid rgba(220, 53, 69, 0.4);
 }
 
 /* Table Styling */
@@ -551,13 +666,13 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .table-items thead {
-    background: rgba(111, 66, 193, 0.15);
+    background: rgba(220, 53, 69, 0.15);
 }
 
 .table-items th {
-    color: #a78bfa;
+    color: #ff6b7a;
     font-weight: 700;
-    border-bottom: 2px solid rgba(111, 66, 193, 0.3);
+    border-bottom: 2px solid rgba(220, 53, 69, 0.3);
     padding: 1.25rem 1rem;
     text-transform: uppercase;
     font-size: 0.8rem;
@@ -576,7 +691,7 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .item-row:hover {
-    background: rgba(111, 66, 193, 0.08);
+    background: rgba(220, 53, 69, 0.08);
 }
 
 .item-number {
@@ -585,10 +700,10 @@ document.addEventListener("DOMContentLoaded", () => {
     height: 32px;
     line-height: 32px;
     text-align: center;
-    background: rgba(111, 66, 193, 0.2);
+    background: rgba(220, 53, 69, 0.2);
     border-radius: 8px;
     font-weight: 700;
-    color: #a78bfa;
+    color: #ff6b7a;
 }
 
 .item-details {
@@ -606,13 +721,8 @@ document.addEventListener("DOMContentLoaded", () => {
     gap: 0.5rem;
 }
 
-.text-purple {
-    color: #a78bfa !important;
-}
-
-.item-description {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.85rem;
+.text-danger {
+    color: #ff6b7a !important;
 }
 
 .hsn-badge {
@@ -627,8 +737,8 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 .quantity-badge {
-    background: rgba(111, 66, 193, 0.2);
-    color: #a78bfa;
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b7a;
     padding: 0.5rem 1rem;
     border-radius: 10px;
     font-weight: 700;
@@ -636,7 +746,12 @@ document.addEventListener("DOMContentLoaded", () => {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    border: 1px solid rgba(111, 66, 193, 0.3);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.rate-text, .amount-text {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .empty-items {
@@ -657,20 +772,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* Table Footer */
 .total-row {
-    background: rgba(111, 66, 193, 0.1);
+    background: rgba(220, 53, 69, 0.1);
     font-weight: 700;
 }
 
 .total-row td {
     border-bottom: none;
     padding: 1.25rem 1rem;
-    color: #a78bfa;
+    color: #ff6b7a;
     font-size: 1.1rem;
 }
 
-.total-items-value {
+.total-amount-value {
     color: #ffffff;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
 }
 
 /* ========================================
@@ -682,7 +797,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .metadata-card {
     background: rgba(25, 25, 40, 0.6);
-    border: 1px solid rgba(111, 66, 193, 0.15);
+    border: 1px solid rgba(220, 53, 69, 0.15);
     border-radius: 12px;
     padding: 1.25rem;
     display: flex;
@@ -693,19 +808,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 .metadata-card:hover {
     background: rgba(35, 35, 50, 0.8);
-    border-color: rgba(111, 66, 193, 0.3);
+    border-color: rgba(220, 53, 69, 0.3);
 }
 
 .metadata-icon {
     width: 45px;
     height: 45px;
-    background: rgba(111, 66, 193, 0.15);
+    background: rgba(220, 53, 69, 0.15);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.3rem;
-    color: #a78bfa;
+    color: #ff6b7a;
     flex-shrink: 0;
 }
 
@@ -745,7 +860,7 @@ document.addEventListener("DOMContentLoaded", () => {
     justify-content: center;
     flex-wrap: wrap;
     background: rgba(10, 10, 25, 0.6);
-    border-top: 2px solid rgba(111, 66, 193, 0.2);
+    border-top: 2px solid rgba(220, 53, 69, 0.2);
 }
 
 .btn-action-footer {
@@ -765,34 +880,24 @@ document.addEventListener("DOMContentLoaded", () => {
 }
 
 /* Button Variants */
-.btn-gradient-warning {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-    border: none;
-    color: #000;
-}
-
-.btn-gradient-warning:hover {
-    background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
-}
-
-.btn-gradient-info {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+.btn-gradient-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     border: none;
     color: #fff;
 }
 
-.btn-gradient-info:hover {
-    background: linear-gradient(135deg, #138496 0%, #17a2b8 100%);
+.btn-gradient-danger:hover {
+    background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
 }
 
-.btn-warning {
-    background: #ffc107;
+.btn-danger {
+    background: #dc3545;
     border: none;
-    color: #000;
+    color: #fff;
 }
 
-.btn-warning:hover {
-    background: #ff9800;
+.btn-danger:hover {
+    background: #c82333;
 }
 
 .btn-info {
@@ -871,17 +976,21 @@ document.addEventListener("DOMContentLoaded", () => {
     .info-icon {
         margin: 0 auto;
     }
+    
+    .return-image {
+        max-width: 100%;
+    }
 }
 
 /* ========================================
    Print Styles
 ======================================== */
 @media print {
-    .challan-detail-bg {
+    .return-detail-bg {
         background: white !important;
     }
     
-    .challan-detail-bg::before {
+    .return-detail-bg::before {
         display: none;
     }
     
@@ -916,7 +1025,8 @@ document.addEventListener("DOMContentLoaded", () => {
     
     .btn,
     .detail-actions-footer,
-    #action_button {
+    #action_button,
+    .image-overlay {
         display: none !important;
     }
 }

@@ -113,11 +113,12 @@ class InvoiceItemForm(forms.ModelForm):
             'placeholder': 'Enter new item name (optional)'
         }),
         label="New Item Name"
+        
     )
     
     class Meta:
         model = InvoiceItem
-        fields = ['item', 'quantity', 'rate', 'gst_amount', 'discount_amount']
+        fields = ['item', 'quantity', 'rate', 'gst_amount', 'discount_amount', 'total']
         widgets = {
             'item': forms.Select(attrs={
                 'class': 'form-select item-select'
