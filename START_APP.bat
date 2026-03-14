@@ -1,19 +1,19 @@
 @echo off
-echo ====================================
-echo Starting Darbar Boots Application
-echo ====================================
+
+echo ==========================================
+echo Starting Darbar Boot House System
+echo ==========================================
 
 docker compose up -d --build
 
-echo Waiting for containers...
-timeout /t 5 >nul
+echo Waiting for system startup...
+timeout /t 25 >nul
 
-docker exec -it darbar_django python manage.py migrate
-docker exec -it darbar_django python manage.py collectstatic --noinput
+echo ==========================================
+echo SYSTEM READY
+echo Open browser: http://localhost:8000
+echo ==========================================
 
-echo ====================================
-echo Application is READY
-echo Open: http://localhost:8000
-echo ====================================
+start http://localhost:8000
 
 pause

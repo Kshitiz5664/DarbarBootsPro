@@ -1,5 +1,9 @@
 @echo off
-echo Stopping Darbar Boots Application...
+
+echo Stopping Darbar Boot House System...
+
 docker compose down
-echo Application stopped.
+
+echo System stopped.
+
 pause
