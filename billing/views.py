@@ -22,7 +22,7 @@ import time
 # Service Layer
 from .services import InvoiceService, ReturnService, PaymentService
 # PDF Generation
-from io import BytesIO
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -38,6 +38,9 @@ from .forms import (
     InvoiceForm, InvoiceItemFormSet, PaymentForm,
     ReturnForm, ChallanForm, ChallanItemFormSet, BalanceFormSet
 )
+from io import BytesIO
+from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable)
+from django.http import HttpResponse
 
 # Inventory Manager Integration
 from core.inventory_manager import (
@@ -132,69 +135,204 @@ def login_required_cbv(view_class):
                             #         logger.error(f"❌ Error checking invoice closure: {e}")
                             #         return False
 
+# ================================================================
+# WATERMARK
+# ================================================================
+ 
+WATERMARK_TEXT = (
+    "All rights reserved | DarbarBootsPro App | "
+    "Darbar Stores | Developed by Kshitiz Singh Tomar"
+)
+ 
+def _add_watermark(canv, doc):
+    """
+    Draws a faint diagonal watermark on every page.
+    Called automatically by SimpleDocTemplate as an onPage callback.
+    """
+    width, height = A4
+    canv.saveState()
+    canv.setFont('Helvetica', 9)
+    canv.setFillColor(colors.HexColor('#cccccc'))   # very light grey
+    canv.setFillAlpha(0.35)                          # 35 % opacity
+    canv.translate(width / 2, height / 2)
+    canv.rotate(42)                                  # diagonal angle
+    canv.drawCentredString(0, 0, WATERMARK_TEXT)
+    canv.restoreState()
+# ================================================================
+# SHARED HEADER / FOOTER HELPERS
+# ================================================================
+
+def _build_store_header(elements, styles):
+    """
+    Builds the Darbar Stores letterhead block and appends it to `elements`.
+    Layout:
+        |OM SHANTI|                  (center, small italic)
+        GST NO: ...  |  mob: ...     (left / right)
+        DARBAR STORES                (center, large bold)
+        main road Khirkiya DIST: Harda  (center)
+        ─────────────────────────────── (divider)
+    """
+    # ── |OM SHANTI| ──────────────────────────────────────────────
+    om_style = ParagraphStyle(
+        'OmShanti',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#555555'),
+        alignment=TA_CENTER,
+        fontName='Helvetica-Oblique',
+        spaceAfter=2,
+    )
+    elements.append(Paragraph('| OM SHANTI |', om_style))
+
+    # ── GST (left) + Mob (right) in a two-column table ───────────
+    gst_style = ParagraphStyle(
+        'GSTLeft',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#333333'),
+        alignment=TA_LEFT,
+        fontName='Helvetica-Bold',
+    )
+    mob_style = ParagraphStyle(
+        'MobRight',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#333333'),
+        alignment=TA_RIGHT,
+        fontName='Helvetica-Bold',
+    )
+    gst_mob_table = Table(
+        [[Paragraph('GST NO: 23AVNPS8384N1ZQ', gst_style),
+          Paragraph('Mob: 8871118384', mob_style)]],
+        colWidths=[3.5 * inch, 3.5 * inch],
+    )
+    gst_mob_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    elements.append(gst_mob_table)
+
+    # ── DARBAR STORES (main heading) ─────────────────────────────
+    store_name_style = ParagraphStyle(
+        'StoreName',
+        parent=styles['Heading1'],
+        fontSize=22,
+        textColor=colors.HexColor('#1a1a1a'),
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold',
+        spaceBefore=4,
+        spaceAfter=0,
+    )
+    elements.append(Paragraph('DARBAR STORES', store_name_style))
+
+    # ── Address (sub-heading) ─────────────────────────────────────
+    address_style = ParagraphStyle(
+        'StoreAddress',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#444444'),
+        alignment=TA_CENTER,
+        fontName='Helvetica',
+        spaceAfter=6,
+    )
+    elements.append(Paragraph('Main Road Khirkiya, DIST: Harda', address_style))
+
+    # ── Divider ───────────────────────────────────────────────────
+    elements.append(HRFlowable(
+        width='100%', thickness=1.5,
+        color=colors.HexColor('#333333'),
+        spaceAfter=8,
+    ))
+
+
+def _build_store_footer(elements, styles):
+    """
+    Appends the terms/disclaimer footer block to `elements`.
+    """
+    # Divider above footer
+    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(HRFlowable(
+        width='100%', thickness=1,
+        color=colors.HexColor('#aaaaaa'),
+        spaceBefore=4, spaceAfter=6,
+    ))
+
+    terms = [
+        '* No Guarantee &amp; No Warranty',
+        '* No Change &amp; No Exchange',
+        '* Subject To Khirkiya Jurisdiction',
+        '* E &amp; O.E',
+    ]
+    terms_style = ParagraphStyle(
+        'TermsStyle',
+        parent=styles['Normal'],
+        fontSize=7.5,
+        textColor=colors.HexColor('#555555'),
+        alignment=TA_CENTER,
+        fontName='Helvetica',
+        leading=11,
+    )
+    elements.append(Paragraph('&nbsp;&nbsp;&nbsp;'.join(terms), terms_style))
+
 
 # ================================================================
 # PDF GENERATION FUNCTIONS
 # ================================================================
 
 def generate_invoice_pdf(invoice):
-    """
-    Generate professional PDF invoice with complete styling.
-    
-    Args:
-        invoice: Invoice instance
-    
-    Returns:
-        HttpResponse with PDF content
-    """
+    """Generate professional PDF invoice with complete styling."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4, 
-        topMargin=0.5*inch, 
-        bottomMargin=0.5*inch,
-        leftMargin=0.75*inch,
-        rightMargin=0.75*inch
+        buffer,
+        pagesize=A4,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
     )
     elements = []
-    
-    # Styles
     styles = getSampleStyleSheet()
+
+    # ── Letterhead ────────────────────────────────────────────────
+    _build_store_header(elements, styles)
+
+    # ── Document-specific title ───────────────────────────────────
     title_style = ParagraphStyle(
-        'CustomTitle',
+        'DocTitle',
         parent=styles['Heading1'],
-        fontSize=28,
+        fontSize=20,
         textColor=colors.HexColor('#00c2ff'),
-        spaceAfter=12,
+        spaceAfter=10,
+        spaceBefore=4,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     heading_style = ParagraphStyle(
-        'CustomHeading',
+        'SectionHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=11,
         textColor=colors.HexColor('#0099cc'),
-        spaceAfter=8,
-        fontName='Helvetica-Bold'
+        spaceAfter=6,
+        fontName='Helvetica-Bold',
     )
-    
     right_align_style = ParagraphStyle(
-        'RightAlign', 
-        parent=styles['Normal'], 
-        alignment=TA_RIGHT
+        'RightAlign',
+        parent=styles['Normal'],
+        alignment=TA_RIGHT,
     )
-    
-    # Title
-    elements.append(Paragraph("WHOLESALE INVOICE", title_style))
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Invoice Info Table
+
+    elements.append(Paragraph('WHOLESALE INVOICE', title_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Invoice Info
     invoice_info = [
         ['Invoice No:', invoice.invoice_number, 'Date:', invoice.date.strftime('%d %b %Y')],
-        ['Status:', 'PAID' if invoice.is_paid else 'PENDING', '', '']
+        ['Status:', 'PAID' if invoice.is_paid else 'PENDING', '', ''],
     ]
-    invoice_table = Table(invoice_info, colWidths=[1.5*inch, 2.5*inch, 1*inch, 1.5*inch])
+    invoice_table = Table(invoice_info, colWidths=[1.5 * inch, 2.5 * inch, 1 * inch, 1.5 * inch])
     invoice_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -202,43 +340,45 @@ def generate_invoice_pdf(invoice):
         ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#666666')),
     ]))
     elements.append(invoice_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Party Details
-    elements.append(Paragraph("BILL TO", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    # Bill To
+    elements.append(Paragraph('BILL TO', heading_style))
     party_data = [
         ['Party Name:', invoice.party.name],
         ['Phone:', invoice.party.phone or 'N/A'],
         ['Email:', getattr(invoice.party, 'email', None) or 'N/A'],
     ]
-    party_table = Table(party_data, colWidths=[1.5*inch, 5*inch])
+    party_table = Table(party_data, colWidths=[1.5 * inch, 5 * inch])
     party_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#666666')),
     ]))
     elements.append(party_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    elements.append(Spacer(1, 0.3 * inch))
+
     # Items Table
-    elements.append(Paragraph("ITEMS", heading_style))
+    elements.append(Paragraph('ITEMS', heading_style))
     items_data = [['#', 'Item', 'Qty', 'Rate', 'GST', 'Discount', 'Total']]
-    
     for idx, item in enumerate(invoice.invoice_items.filter(is_active=True), 1):
         items_data.append([
             str(idx),
             item.item.name[:30] if item.item else 'Manual Item',
             str(item.quantity),
-            f'₹{item.rate:,.2f}',
-            f'₹{item.gst_amount:,.2f}',
-            f'₹{item.discount_amount:,.2f}',
-            f'₹{item.total:,.2f}'
+            f'\u20b9{item.rate:,.2f}',
+            f'\u20b9{item.gst_amount:,.2f}',
+            f'\u20b9{item.discount_amount:,.2f}',
+            f'\u20b9{item.total:,.2f}',
         ])
-    
+
     total_amount = sum(item.total for item in invoice.invoice_items.filter(is_active=True))
-    items_data.append(['', '', '', '', '', 'TOTAL:', f'₹{total_amount:,.2f}'])
-    
-    items_table = Table(items_data, colWidths=[0.4*inch, 2.5*inch, 0.7*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
+    items_data.append(['', '', '', '', '', 'TOTAL:', f'\u20b9{total_amount:,.2f}'])
+
+    items_table = Table(
+        items_data,
+        colWidths=[0.4 * inch, 2.5 * inch, 0.7 * inch, 1 * inch, 1 * inch, 1 * inch, 1.2 * inch],
+    )
     items_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#00c2ff')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -258,20 +398,19 @@ def generate_invoice_pdf(invoice):
         ('SPAN', (0, -1), (-3, -1)),
     ]))
     elements.append(items_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    elements.append(Spacer(1, 0.3 * inch))
+
     # Payment Summary
-    elements.append(Paragraph("PAYMENT SUMMARY", heading_style))
+    elements.append(Paragraph('PAYMENT SUMMARY', heading_style))
     total_paid = sum(payment.amount for payment in invoice.payments.filter(is_active=True))
     balance = total_amount - total_paid
-    
+
     summary_data = [
-        ['Invoice Total:', f'₹{total_amount:,.2f}'],
-        ['Amount Paid:', f'₹{total_paid:,.2f}'],
-        ['Balance Due:', f'₹{balance:,.2f}']
+        ['Invoice Total:', f'\u20b9{total_amount:,.2f}'],
+        ['Amount Paid:', f'\u20b9{total_paid:,.2f}'],
+        ['Balance Due:', f'\u20b9{balance:,.2f}'],
     ]
-    
-    summary_table = Table(summary_data, colWidths=[4.5*inch, 2*inch])
+    summary_table = Table(summary_data, colWidths=[4.5 * inch, 2 * inch])
     summary_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -2), 10),
@@ -281,120 +420,112 @@ def generate_invoice_pdf(invoice):
         ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#00c2ff')),
     ]))
     elements.append(summary_table)
-    elements.append(Spacer(1, 0.5*inch))
-    
-    # Footer
+
+    # Generated-on line
+    elements.append(Spacer(1, 0.2 * inch))
     footer_text = f"Generated on {datetime.now().strftime('%d %b %Y at %I:%M %p')}"
     elements.append(Paragraph(footer_text, right_align_style))
-    elements.append(Paragraph("Thank you for your business!", styles['Normal']))
-    
-    # Build PDF
+    elements.append(Paragraph('Thank you for your business!', styles['Normal']))
+
+    # ── Store footer ──────────────────────────────────────────────
+    _build_store_footer(elements, styles)
+
     doc.build(elements)
     buffer.seek(0)
-    
-    # Create response
+
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    filename = f'Invoice_{invoice.invoice_number.replace("/", "-")}_{invoice.party.name.replace(" ", "_")}.pdf'
+    filename = (
+        f'Invoice_{invoice.invoice_number.replace("/", "-")}'
+        f'_{invoice.party.name.replace(" ", "_")}.pdf'
+    )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     return response
 
 
+# ----------------------------------------------------------------
+
 def generate_payment_receipt_pdf(payment):
-    """
-    Generate professional PDF payment receipt.
-    
-    Args:
-        payment: Payment instance
-    
-    Returns:
-        HttpResponse with PDF content
-    """
+    """Generate professional PDF payment receipt."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4, 
-        topMargin=0.5*inch, 
-        bottomMargin=0.5*inch,
-        leftMargin=0.75*inch,
-        rightMargin=0.75*inch
+        buffer,
+        pagesize=A4,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
     )
     elements = []
-    
-    # Styles
     styles = getSampleStyleSheet()
+
+    _build_store_header(elements, styles)
+
     title_style = ParagraphStyle(
-        'CustomTitle',
+        'DocTitle',
         parent=styles['Heading1'],
-        fontSize=24,
+        fontSize=20,
         textColor=colors.HexColor('#28a745'),
-        spaceAfter=12,
+        spaceAfter=10,
+        spaceBefore=4,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     heading_style = ParagraphStyle(
-        'CustomHeading',
+        'SectionHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=11,
         textColor=colors.HexColor('#34d058'),
         spaceAfter=6,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     right_align_style = ParagraphStyle(
-        'RightAlign', 
-        parent=styles['Normal'], 
-        alignment=TA_RIGHT
+        'RightAlign',
+        parent=styles['Normal'],
+        alignment=TA_RIGHT,
     )
-    
-    # Title
-    elements.append(Paragraph("PAYMENT RECEIPT", title_style))
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # Receipt Info
+
+    elements.append(Paragraph('PAYMENT RECEIPT', title_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
     payment_num = payment.payment_number or f'PAY-{payment.id}'
     receipt_info = [
         ['Receipt No:', payment_num, 'Date:', payment.date.strftime('%d %b %Y')],
     ]
-    receipt_table = Table(receipt_info, colWidths=[1.5*inch, 2*inch, 1*inch, 2*inch])
+    receipt_table = Table(receipt_info, colWidths=[1.5 * inch, 2 * inch, 1 * inch, 2 * inch])
     receipt_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
     ]))
     elements.append(receipt_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Party Details
-    elements.append(Paragraph("RECEIVED FROM", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('RECEIVED FROM', heading_style))
     party_data = [
         ['Party Name:', payment.party.name],
         ['Phone:', payment.party.phone or 'N/A'],
         ['Email:', getattr(payment.party, 'email', None) or 'N/A'],
     ]
-    party_table = Table(party_data, colWidths=[1.5*inch, 5*inch])
+    party_table = Table(party_data, colWidths=[1.5 * inch, 5 * inch])
     party_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
     ]))
     elements.append(party_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Payment Details
-    elements.append(Paragraph("PAYMENT DETAILS", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('PAYMENT DETAILS', heading_style))
     payment_data = [
         ['Description', 'Amount'],
         [
             f'Payment for {f"Invoice #{payment.invoice.invoice_number}" if payment.invoice else "General Payment"}',
-            f'₹{payment.amount:,.2f}'
+            f'\u20b9{payment.amount:,.2f}',
         ],
         ['Payment Mode:', payment.get_mode_display()],
     ]
-    
     if payment.notes:
         payment_data.append(['Notes:', payment.notes[:100]])
-    
-    payment_table = Table(payment_data, colWidths=[4*inch, 2.5*inch])
+
+    payment_table = Table(payment_data, colWidths=[4 * inch, 2.5 * inch])
     payment_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -405,132 +536,119 @@ def generate_payment_receipt_pdf(payment):
         ('ALIGN', (1, 1), (1, 1), 'RIGHT'),
     ]))
     elements.append(payment_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Total Amount Box
-    total_data = [['TOTAL AMOUNT RECEIVED', f'₹{payment.amount:,.2f}']]
-    total_table = Table(total_data, colWidths=[4*inch, 2.5*inch])
+    elements.append(Spacer(1, 0.3 * inch))
+
+    total_data = [['TOTAL AMOUNT RECEIVED', f'\u20b9{payment.amount:,.2f}']]
+    total_table = Table(total_data, colWidths=[4 * inch, 2.5 * inch])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#34d058')),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 14),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('PADDING', (0, 0), (-1, -1), 15),
+        ('TOPPADDING', (0, 0), (-1, -1), 15),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
     ]))
     elements.append(total_table)
-    elements.append(Spacer(1, 0.5*inch))
-    
-    # Footer
+
+    elements.append(Spacer(1, 0.2 * inch))
     footer_text = f"Generated on {datetime.now().strftime('%d %b %Y at %I:%M %p')}"
     elements.append(Paragraph(footer_text, right_align_style))
-    elements.append(Paragraph("Thank you for your payment!", styles['Normal']))
-    
-    # Build PDF
+    elements.append(Paragraph('Thank you for your payment!', styles['Normal']))
+
+    _build_store_footer(elements, styles)
+
     doc.build(elements)
     buffer.seek(0)
-    
-    # Create response
+
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     filename = f'Payment_Receipt_{payment_num}_{payment.party.name.replace(" ", "_")}.pdf'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     return response
 
 
+# ----------------------------------------------------------------
+
 def generate_return_receipt_pdf(return_obj):
-    """
-    Generate professional PDF return receipt.
-    
-    Args:
-        return_obj: Return instance
-    
-    Returns:
-        HttpResponse with PDF content
-    """
+    """Generate professional PDF return receipt."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4, 
-        topMargin=0.5*inch, 
-        bottomMargin=0.5*inch,
-        leftMargin=0.75*inch,
-        rightMargin=0.75*inch
+        buffer,
+        pagesize=A4,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
     )
     elements = []
-    
-    # Styles
     styles = getSampleStyleSheet()
+
+    _build_store_header(elements, styles)
+
     title_style = ParagraphStyle(
-        'CustomTitle',
+        'DocTitle',
         parent=styles['Heading1'],
-        fontSize=24,
+        fontSize=20,
         textColor=colors.HexColor('#dc3545'),
-        spaceAfter=12,
+        spaceAfter=10,
+        spaceBefore=4,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     heading_style = ParagraphStyle(
-        'CustomHeading',
+        'SectionHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=11,
         textColor=colors.HexColor('#e74c3c'),
         spaceAfter=6,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     right_align_style = ParagraphStyle(
-        'RightAlign', 
-        parent=styles['Normal'], 
-        alignment=TA_RIGHT
+        'RightAlign',
+        parent=styles['Normal'],
+        alignment=TA_RIGHT,
     )
-    
-    # Title
-    elements.append(Paragraph("RETURN RECEIPT", title_style))
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # Return Info
+
+    elements.append(Paragraph('RETURN RECEIPT', title_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
     return_num = return_obj.return_number or f'RET-{return_obj.id}'
     return_info = [
         ['Return No:', return_num, 'Date:', return_obj.return_date.strftime('%d %b %Y')],
-        ['Invoice:', return_obj.invoice.invoice_number, '', '']
+        ['Invoice:', return_obj.invoice.invoice_number, '', ''],
     ]
-    return_table = Table(return_info, colWidths=[1.5*inch, 2*inch, 1*inch, 2*inch])
+    return_table = Table(return_info, colWidths=[1.5 * inch, 2 * inch, 1 * inch, 2 * inch])
     return_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('SPAN', (1, 1), (-1, 1)),
     ]))
     elements.append(return_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Party Details
-    elements.append(Paragraph("RETURN FROM", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('RETURN FROM', heading_style))
     party_data = [
         ['Party Name:', return_obj.party.name],
         ['Phone:', return_obj.party.phone or 'N/A'],
         ['Email:', getattr(return_obj.party, 'email', None) or 'N/A'],
     ]
-    party_table = Table(party_data, colWidths=[1.5*inch, 5*inch])
+    party_table = Table(party_data, colWidths=[1.5 * inch, 5 * inch])
     party_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
     ]))
     elements.append(party_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Return Details
-    elements.append(Paragraph("RETURN DETAILS", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('RETURN DETAILS', heading_style))
     return_data = [
         ['Description', 'Amount'],
-        [f'Return for Invoice #{return_obj.invoice.invoice_number}', f'₹{return_obj.amount:,.2f}'],
+        [f'Return for Invoice #{return_obj.invoice.invoice_number}', f'\u20b9{return_obj.amount:,.2f}'],
     ]
-    
     if return_obj.reason:
         return_data.append(['Reason:', return_obj.reason[:100]])
-    
-    return_details_table = Table(return_data, colWidths=[4*inch, 2.5*inch])
+
+    return_details_table = Table(return_data, colWidths=[4 * inch, 2.5 * inch])
     return_details_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc3545')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -541,100 +659,90 @@ def generate_return_receipt_pdf(return_obj):
         ('ALIGN', (1, 1), (1, 1), 'RIGHT'),
     ]))
     elements.append(return_details_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Total Amount Box
-    total_data = [['TOTAL RETURN AMOUNT', f'₹{return_obj.amount:,.2f}']]
-    total_table = Table(total_data, colWidths=[4*inch, 2.5*inch])
+    elements.append(Spacer(1, 0.3 * inch))
+
+    total_data = [['TOTAL RETURN AMOUNT', f'\u20b9{return_obj.amount:,.2f}']]
+    total_table = Table(total_data, colWidths=[4 * inch, 2.5 * inch])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#e74c3c')),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 14),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('PADDING', (0, 0), (-1, -1), 15),
+        ('TOPPADDING', (0, 0), (-1, -1), 15),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
     ]))
     elements.append(total_table)
-    elements.append(Spacer(1, 0.5*inch))
-    
-    # Footer
+
+    elements.append(Spacer(1, 0.2 * inch))
     footer_text = f"Generated on {datetime.now().strftime('%d %b %Y at %I:%M %p')}"
     elements.append(Paragraph(footer_text, right_align_style))
-    elements.append(Paragraph("Return processed successfully.", styles['Normal']))
-    
-    # Build PDF
+    elements.append(Paragraph('Return processed successfully.', styles['Normal']))
+
+    _build_store_footer(elements, styles)
+
     doc.build(elements)
     buffer.seek(0)
-    
-    # Create response
+
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     filename = f'Return_Receipt_{return_num}_{return_obj.party.name.replace(" ", "_")}.pdf'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     return response
 
 
+# ----------------------------------------------------------------
+
 def generate_challan_pdf(challan):
-    """
-    Generate professional PDF challan (delivery note).
-    
-    Args:
-        challan: Challan instance
-    
-    Returns:
-        HttpResponse with PDF content
-    """
+    """Generate professional PDF challan (delivery note)."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4, 
-        topMargin=0.5*inch, 
-        bottomMargin=0.5*inch,
-        leftMargin=0.75*inch,
-        rightMargin=0.75*inch
+        buffer,
+        pagesize=A4,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
     )
     elements = []
-    
-    # Styles
     styles = getSampleStyleSheet()
+
+    _build_store_header(elements, styles)
+
     title_style = ParagraphStyle(
-        'CustomTitle',
+        'DocTitle',
         parent=styles['Heading1'],
-        fontSize=28,
+        fontSize=20,
         textColor=colors.HexColor('#6f42c1'),
-        spaceAfter=12,
+        spaceAfter=10,
+        spaceBefore=4,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontName='Helvetica-Bold',
     )
-    
     heading_style = ParagraphStyle(
-        'CustomHeading',
+        'SectionHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=11,
         textColor=colors.HexColor('#8e44ad'),
-        spaceAfter=8,
-        fontName='Helvetica-Bold'
+        spaceAfter=6,
+        fontName='Helvetica-Bold',
     )
-    
     right_align_style = ParagraphStyle(
-        'RightAlign', 
-        parent=styles['Normal'], 
-        alignment=TA_RIGHT
+        'RightAlign',
+        parent=styles['Normal'],
+        alignment=TA_RIGHT,
     )
-    
-    # Title
-    elements.append(Paragraph("DELIVERY CHALLAN", title_style))
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Challan Info
+
+    elements.append(Paragraph('DELIVERY CHALLAN', title_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
     challan_num = challan.challan_number or f'CHN-{challan.id}'
     challan_info = [
         ['Challan No:', challan_num, 'Date:', challan.date.strftime('%d %b %Y')],
     ]
     if challan.invoice:
         challan_info.append(['Invoice No:', challan.invoice.invoice_number, '', ''])
-    
-    challan_table = Table(challan_info, colWidths=[1.5*inch, 2.5*inch, 1*inch, 1.5*inch])
+
+    challan_table = Table(challan_info, colWidths=[1.5 * inch, 2.5 * inch, 1 * inch, 1.5 * inch])
     table_style_list = [
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -643,34 +751,32 @@ def generate_challan_pdf(challan):
         table_style_list.append(('SPAN', (1, 1), (-1, 1)))
     challan_table.setStyle(TableStyle(table_style_list))
     elements.append(challan_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Party Details
-    elements.append(Paragraph("DELIVER TO", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('DELIVER TO', heading_style))
     party_data = [
         ['Party Name:', challan.party.name],
         ['Phone:', challan.party.phone or 'N/A'],
         ['Email:', getattr(challan.party, 'email', None) or 'N/A'],
     ]
-    party_table = Table(party_data, colWidths=[1.5*inch, 5*inch])
+    party_table = Table(party_data, colWidths=[1.5 * inch, 5 * inch])
     party_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
     ]))
     elements.append(party_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Items Table
-    elements.append(Paragraph("ITEMS", heading_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph('ITEMS', heading_style))
     items_data = [['#', 'Item Name', 'Quantity']]
     for idx, item in enumerate(challan.challan_items.filter(is_active=True), 1):
         items_data.append([
             str(idx),
             item.item.name if item.item else 'N/A',
-            str(item.quantity)
+            str(item.quantity),
         ])
-    
-    items_table = Table(items_data, colWidths=[0.5*inch, 5*inch, 1.5*inch])
+
+    items_table = Table(items_data, colWidths=[0.5 * inch, 5 * inch, 1.5 * inch])
     items_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6f42c1')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -683,31 +789,31 @@ def generate_challan_pdf(challan):
         ('ALIGN', (2, 1), (2, -1), 'CENTER'),
     ]))
     elements.append(items_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Transport Details
+    elements.append(Spacer(1, 0.3 * inch))
+
     if challan.transport_details:
-        elements.append(Paragraph("TRANSPORT DETAILS", heading_style))
+        elements.append(Paragraph('TRANSPORT DETAILS', heading_style))
         elements.append(Paragraph(challan.transport_details, styles['Normal']))
-        elements.append(Spacer(1, 0.3*inch))
-    
-    elements.append(Spacer(1, 0.5*inch))
-    
-    # Footer
+        elements.append(Spacer(1, 0.3 * inch))
+
     footer_text = f"Generated on {datetime.now().strftime('%d %b %Y at %I:%M %p')}"
     elements.append(Paragraph(footer_text, right_align_style))
-    elements.append(Paragraph("Thank you for your business!", styles['Normal']))
-    
-    # Build PDF
+    elements.append(Paragraph('Thank you for your business!', styles['Normal']))
+
+    _build_store_footer(elements, styles)
+
     doc.build(elements)
     buffer.seek(0)
-    
-    # Create response
+
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    filename = f'Challan_{challan_num.replace("/", "-")}_{challan.party.name.replace(" ", "_")}.pdf'
+    filename = (
+        f'Challan_{challan_num.replace("/", "-")}'
+        f'_{challan.party.name.replace(" ", "_")}.pdf'
+    )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     return response
+
+
 
 
 # ================================================================
@@ -1166,10 +1272,12 @@ class InvoiceCreateView(View):
 
         # Return form with errors
         parties = list(Party.objects.filter(is_active=True).values('id', 'name', 'phone'))
+        items = list(Item.objects.filter().values('id', 'name'))
         return render(request, self.template_name, {
             'form': form,
             'formset': formset,
             'parties': json.dumps(parties),
+            'items': json.dumps(items),
         })
 
 

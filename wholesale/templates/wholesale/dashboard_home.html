@@ -464,7 +464,7 @@
       </h5>
       <p class="kpi-value text-dark">
         {% if "amount" in key or "total" in key or "balance" in key or "pending" in key %}
-          ₹{{ value|floatformat:2 }}
+          {{ value|floatformat:0}}
         {% else %}
           {{ value }}
         {% endif %}

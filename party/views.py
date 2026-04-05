@@ -8,6 +8,9 @@ from .models import Party
 from .forms import PartyForm
 from .utils import send_whatsapp_reminder
 import logging
+import json
+import re
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -248,3 +251,165 @@ class SendReminderView(LoginRequiredMixin, View):
     def post(self, request, pk, *args, **kwargs):
         """Handle POST request (same as GET for compatibility)."""
         return self.get(request, pk, *args, **kwargs)
+    
+ 
+# ================================================================
+# QUICK PARTY REGISTRATION — AJAX ENDPOINT
+# ================================================================
+ 
+class PartyQuickCreateView(LoginRequiredMixin, View):
+    """
+    AJAX-only endpoint to quickly register a new party without page reload.
+    Called from the invoice creation modal.
+ 
+    POST  /party/quick-create/
+    Body  : JSON  { name, phone, contact_person, email }
+    Returns: JSON { success, party: {id, name, phone}, message }
+             or   { success: false, errors: {field: [msg]} }
+    """
+ 
+    # Only POST is allowed
+    http_method_names = ['post']
+ 
+    def post(self, request, *args, **kwargs):
+        # ── Parse body ──────────────────────────────────────────
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse(
+                {'success': False, 'error': 'Invalid JSON body.'},
+                status=400
+            )
+ 
+        name           = (data.get('name') or '').strip()
+        phone          = (data.get('phone') or '').strip()
+        email          = (data.get('email') or '').strip()
+        contact_person = (data.get('contact_person') or '').strip()
+ 
+        # ── Validate name ────────────────────────────────────────
+        if not name:
+            return JsonResponse(
+                {'success': False, 'errors': {'name': ['Party name is required.']}},
+                status=400
+            )
+ 
+        if len(name) < 2:
+            return JsonResponse(
+                {'success': False, 'errors': {'name': ['Party name must be at least 2 characters.']}},
+                status=400
+            )
+ 
+        # ── Validate phone ───────────────────────────────────────
+        if phone:
+            phone_digits = re.sub(r'[^\d]', '', phone)
+            if len(phone_digits) < 10:
+                return JsonResponse(
+                    {'success': False, 'errors': {'phone': ['Phone must have at least 10 digits.']}},
+                    status=400
+                )
+            if len(phone_digits) > 15:
+                return JsonResponse(
+                    {'success': False, 'errors': {'phone': ['Phone cannot exceed 15 digits.']}},
+                    status=400
+                )
+            # Keep cleaned phone (digits + optional leading +)
+            phone = re.sub(r'[^\d+]', '', phone)
+ 
+        # ── Validate email ───────────────────────────────────────
+        if email:
+            email_pattern = r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                return JsonResponse(
+                    {'success': False, 'errors': {'email': ['Enter a valid email address.']}},
+                    status=400
+                )
+            email = email.lower()
+ 
+        # ── Check for existing party (case-insensitive, all records) ─
+        existing = Party.all_objects.filter(name__iexact=name).first()
+ 
+        if existing:
+            if existing.is_active:
+                # Party already exists and is active — tell the user
+                return JsonResponse(
+                    {
+                        'success': False,
+                        'errors': {
+                            'name': [
+                                f'Party "{existing.name}" already exists. '
+                                f'Select it from the dropdown.'
+                            ]
+                        }
+                    },
+                    status=400
+                )
+            else:
+                # Party was soft-deleted — reactivate with updated details
+                existing.is_active = True
+                existing.updated_by = request.user
+                if phone:
+                    existing.phone = phone
+                if email:
+                    existing.email = email
+                if contact_person:
+                    existing.contact_person = contact_person
+                existing.save()
+ 
+                logger.info(
+                    f"✅ Party reactivated via quick-create: "
+                    f"{existing.name} (id={existing.id}) by {request.user.username}"
+                )
+ 
+                return JsonResponse(
+                    {
+                        'success': True,
+                        'party': {
+                            'id': existing.id,
+                            'name': existing.name,
+                            'phone': existing.phone or '',
+                        },
+                        'message': f'Party "{existing.name}" reactivated successfully.',
+                        'reactivated': True,
+                    },
+                    status=200
+                )
+ 
+        # ── Create new party ─────────────────────────────────────
+        try:
+            party = Party.objects.create(
+                name=name,
+                phone=phone or None,
+                email=email or None,
+                contact_person=contact_person or None,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+ 
+            logger.info(
+                f"✅ Party quick-created: "
+                f"{party.name} (id={party.id}) by {request.user.username}"
+            )
+ 
+            return JsonResponse(
+                {
+                    'success': True,
+                    'party': {
+                        'id': party.id,
+                        'name': party.name,
+                        'phone': party.phone or '',
+                    },
+                    'message': f'Party "{party.name}" created successfully.',
+                    'reactivated': False,
+                },
+                status=201
+            )
+ 
+        except Exception as e:
+            logger.error(
+                f"❌ Unexpected error in PartyQuickCreateView: {e}",
+                exc_info=True
+            )
+            return JsonResponse(
+                {'success': False, 'error': 'An unexpected error occurred. Please try again.'},
+                status=500
+            )

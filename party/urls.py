@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     PartyListView, PartyCreateView, PartyUpdateView, PartyDeleteView,
-    PartyDetailView, SendReminderView
+    PartyDetailView, SendReminderView, PartyQuickCreateView,
 )
 
 app_name = 'party'
@@ -24,4 +24,6 @@ urlpatterns = [
     
     # Send WhatsApp reminder
     path('<int:pk>/send-reminder/', SendReminderView.as_view(), name='send_reminder'),
+    
+     path('quick-create/',      PartyQuickCreateView.as_view(), name='party_quick_create'),
 ]
